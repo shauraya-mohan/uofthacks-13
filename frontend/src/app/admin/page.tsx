@@ -6,7 +6,6 @@ import type { Report } from '@/lib/types';
 import { useReports } from '@/hooks/useReports';
 import { useAreas } from '@/hooks/useAreas';
 import { getReportsInArea, getAreasContainingPoint } from '@/lib/geo';
-import { initAmplitude, analytics } from '@/lib/analytics';
 import AdminPasswordGate from '@/components/AdminPasswordGate';
 import AdminSidebar from '@/components/AdminSidebar';
 import PinDrawer from '@/components/PinDrawer';
@@ -32,10 +31,6 @@ export default function AdminPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const prevReportsRef = useRef<Report[]>([]);
-
-  useEffect(() => {
-    initAmplitude();
-  }, []);
 
   // Poll for new reports every 5 seconds when authenticated
   useEffect(() => {
@@ -80,7 +75,6 @@ export default function AdminPage() {
       const areaNumber = areas.length + 1;
       const newArea = await addArea(geometry, `Area ${areaNumber}`);
       if (newArea) {
-        analytics.adminAreaSaved(newArea.id);
         addToast('Responsibility area created', 'success');
       } else {
         addToast('Failed to create area', 'error');
@@ -109,7 +103,6 @@ export default function AdminPage() {
   );
 
   const handlePinClick = useCallback((report: Report) => {
-    analytics.pinOpened(report.id, report.content.category, report.content.severity);
     setSelectedReport(report);
     setIsDrawerOpen(true);
   }, []);

@@ -71,29 +71,6 @@ export interface AdminArea {
   createdAt: string;
 }
 
-// Amplitude event types
-export type AnalyticsEvent =
-  | 'report_start'
-  | 'media_selected'
-  | 'ai_result_shown'
-  | 'report_submitted'
-  | 'pin_opened'
-  | 'admin_login_success'
-  | 'admin_area_saved'
-  | 'admin_area_selected';
-
-export interface AnalyticsEventProperties {
-  media_type?: 'image' | 'video';
-  category?: Category;
-  severity?: Severity;
-  confidence?: number;
-  geo_method?: 'auto' | 'manual';
-  area_id?: string;
-  report_id?: string;
-  report_count?: number;
-  is_edited?: boolean;
-}
-
 // Severity color mapping
 export const SEVERITY_COLORS: Record<Severity, string> = {
   low: '#22c55e',    // green

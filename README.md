@@ -36,7 +36,6 @@ Report and track accessibility barriers using computer vision and geospatial map
 - **Database**: MongoDB Atlas with geospatial indexing
 - **Map**: Mapbox GL JS + Mapbox Draw
 - **AI**: OpenAI GPT-4o Vision (images), TwelveLabs (videos)
-- **Analytics**: Amplitude Browser SDK
 - **Media Storage**: Cloudinary (with base64 fallback)
 
 ---
@@ -86,7 +85,6 @@ TWELVELABS_API_KEY=tlk_your_key_here
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_key
 CLOUDINARY_API_SECRET=your_secret
-NEXT_PUBLIC_AMPLITUDE_API_KEY=your_key
 ```
 
 See `.env.example` for detailed setup instructions.
@@ -94,11 +92,6 @@ See `.env.example` for detailed setup instructions.
 ---
 
 ## 🎯 Sponsor Tracks
-
-### 🎵 **Amplitude** - Self-Improving Product
-- ✅ Full user journey tracking
-- ✅ Events: report_start, media_selected, ai_result_shown, report_submitted, pin_opened
-- ✅ Admin analytics: area creation, selection, report filtering
 
 ### 🛍️ **Shopify** - AI
 - ✅ OpenAI GPT-4o Vision for image analysis
@@ -192,6 +185,5 @@ MIT License - see LICENSE file for details
 - **OpenAI** - Image analysis
 - **TwelveLabs** - Video understanding
 - **MongoDB** - Geospatial database
-- **Amplitude** - Analytics platform
 - **UofTHacks** - Amazing hackathon! 🎉
 

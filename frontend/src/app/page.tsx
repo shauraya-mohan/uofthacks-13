@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import type { Report } from '@/lib/types';
 import { useReports } from '@/hooks/useReports';
-import { initAmplitude, analytics } from '@/lib/analytics';
 import UploadModal from '@/components/UploadModal';
 import PinDrawer from '@/components/PinDrawer';
 import Toast, { useToast } from '@/components/Toast';
@@ -27,13 +26,7 @@ export default function HomePage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Initialize Amplitude
-  useEffect(() => {
-    initAmplitude();
-  }, []);
-
   const handleReportButtonClick = () => {
-    analytics.reportStart();
     setIsUploadModalOpen(true);
   };
 
@@ -41,13 +34,6 @@ export default function HomePage() {
     async (reportData: Omit<Report, 'id' | 'createdAt'>) => {
       const newReport = await addReport(reportData);
       if (newReport) {
-        analytics.reportSubmitted(
-          newReport.id,
-          newReport.content.category,
-          newReport.content.severity,
-          newReport.mediaType,
-          newReport.geoMethod
-        );
         addToast('Report submitted successfully!', 'success');
       } else {
         addToast('Failed to submit report. Please try again.', 'error');
@@ -57,7 +43,6 @@ export default function HomePage() {
   );
 
   const handlePinClick = useCallback((report: Report) => {
-    analytics.pinOpened(report.id, report.content.category, report.content.severity);
     setSelectedReport(report);
     setIsDrawerOpen(true);
   }, []);

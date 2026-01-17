@@ -49,17 +49,6 @@ A web app for reporting and mapping accessibility barriers. Users upload photos/
 - Filter/highlight reports by area
 - Toast notifications for new reports in monitored areas
 
-### Analytics (Amplitude)
-Tracked events:
-- `report_start` - User clicks Report Barrier button
-- `media_selected` - User selects a file
-- `ai_result_shown` - AI analysis complete
-- `report_submitted` - Report saved
-- `pin_opened` - User clicks a pin
-- `admin_login_success` - Admin authenticated
-- `admin_area_saved` - New polygon created
-- `admin_area_selected` - Admin clicks an area
-
 ## Environment Variables
 
 ```bash
@@ -67,7 +56,6 @@ Tracked events:
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.xxx        # Mapbox public token
 
 # Optional
-NEXT_PUBLIC_AMPLITUDE_API_KEY=xxx      # Amplitude analytics
 NEXT_PUBLIC_ADMIN_PASSWORD=admin       # Admin panel password
 OPENAI_API_KEY=sk-xxx                  # Real AI analysis (images only)
 TWELVELABS_API_KEY=xxx                 # Future: video analysis
@@ -84,7 +72,6 @@ If `OPENAI_API_KEY` is not set, the app uses **deterministic mock analysis**:
 
 - **Framework**: Next.js 16 (App Router, TypeScript)
 - **Map**: Mapbox GL JS + Mapbox Draw
-- **Analytics**: Amplitude Browser SDK
 - **Styling**: Tailwind CSS
 - **Storage**: localStorage (no database needed)
 - **AI**: OpenAI GPT-4o Vision (optional)
@@ -114,7 +101,6 @@ frontend/
 │   └── lib/
 │       ├── types.ts              # TypeScript interfaces
 │       ├── storage.ts            # localStorage helpers
-│       ├── analytics.ts          # Amplitude tracking
 │       └── geo.ts                # Point-in-polygon + geolocation
 ├── .env.example                  # Environment template
 ├── next.config.ts                # Next.js configuration

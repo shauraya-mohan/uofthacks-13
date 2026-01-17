@@ -67,7 +67,7 @@ async function getOrCreateIndex(): Promise<string> {
     const existingIndex = data.data?.find(
       (idx: any) => idx.index_name === 'accessibility-barriers'
     );
-    
+
     if (existingIndex) {
       return existingIndex._id;
     }
@@ -108,7 +108,9 @@ async function uploadVideo(
   fileName: string
 ): Promise<string> {
   const formData = new FormData();
-  const blob = new Blob([videoBuffer], { type: 'video/mp4' });
+  // Use Uint8Array to ensure compatibility with Blob constructor
+  const uint8Array = new Uint8Array(videoBuffer);
+  const blob = new Blob([uint8Array], { type: 'video/mp4' });
   formData.append('video_file', blob, fileName);
   formData.append('index_id', indexId);
 
@@ -147,11 +149,11 @@ async function waitForVideoIndexing(taskId: string): Promise<void> {
     }
 
     const data = await response.json();
-    
+
     if (data.status === 'ready') {
       return;
     }
-    
+
     if (data.status === 'failed') {
       throw new Error('Video indexing failed');
     }
@@ -260,19 +262,19 @@ function categorizFromQuery(query: string): Category {
 function determineSeverity(category: Category, confidence: number): Severity {
   // High priority categories
   const highPriorityCategories: Category[] = ['missing_ramp', 'blocked_path', 'steep_grade'];
-  
+
   if (highPriorityCategories.includes(category) && confidence > 0.7) {
     return 'high';
   }
-  
+
   if (confidence > 0.8) {
     return 'high';
   }
-  
+
   if (confidence > 0.6) {
     return 'medium';
   }
-  
+
   return 'low';
 }
 

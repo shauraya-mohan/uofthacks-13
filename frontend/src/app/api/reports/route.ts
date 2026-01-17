@@ -2,15 +2,45 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase, DbReport } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-// GET /api/reports - List all reports
-export async function GET() {
+// GET /api/reports - List all reports with optional pagination
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '0', 10);
+    const limit = parseInt(searchParams.get('limit') || '0', 10);
+    const status = searchParams.get('status'); // Optional status filter
+    const severity = searchParams.get('severity'); // Optional severity filter
+
     const db = await getDatabase();
-    const reports = await db
+
+    // Build query filter
+    const filter: any = {};
+    if (status && ['open', 'acknowledged', 'resolved'].includes(status)) {
+      filter.status = status;
+    }
+    if (severity && ['low', 'medium', 'high'].includes(severity)) {
+      filter['ai.severity'] = severity;
+    }
+
+    // Get total count for pagination metadata
+    const total = await db.collection<DbReport>('reports').countDocuments(filter);
+
+    // Build query with optional pagination
+    let query = db
       .collection<DbReport>('reports')
-      .find({})
-      .sort({ createdAt: -1 })
-      .toArray();
+      .find(filter)
+      .sort({ createdAt: -1 });
+
+    // Apply pagination only if both page and limit are provided and valid
+    if (page > 0 && limit > 0) {
+      const skip = (page - 1) * limit;
+      query = query.skip(skip).limit(limit);
+    } else if (limit > 0) {
+      // Just limit without page
+      query = query.limit(limit);
+    }
+
+    const reports = await query.toArray();
 
     // Transform to match frontend Report type
     const transformedReports = reports.map((report) => ({
@@ -34,6 +64,20 @@ export async function GET() {
       status: report.status,
     }));
 
+    // Return with pagination metadata if pagination was requested
+    if (page > 0 && limit > 0) {
+      return NextResponse.json({
+        data: transformedReports,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
+
+    // Return flat array for backwards compatibility
     return NextResponse.json(transformedReports);
   } catch (error) {
     console.error('Failed to fetch reports:', error);

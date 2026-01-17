@@ -169,7 +169,10 @@ export default function Map({
       map.current?.remove();
       map.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // NOTE: Empty deps intentional - map initialization runs once on mount.
+    // Changing props (initialCenter, onCenterChange) are captured via refs to avoid recreating the map.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle center select mode - emit coordinates when map moves
   useEffect(() => {
@@ -413,11 +416,10 @@ export default function Map({
         {reports.length > 0 && (
           <button
             onClick={() => setShowAllPopups(!showAllPopups)}
-            className={`absolute top-4 right-16 z-10 px-3 py-2 rounded-lg font-medium text-sm shadow-lg transition-colors ${
-              showAllPopups
+            className={`absolute top-4 right-16 z-10 px-3 py-2 rounded-lg font-medium text-sm shadow-lg transition-colors ${showAllPopups
                 ? 'bg-blue-600 text-white'
                 : 'bg-[#1a1a1a]/90 backdrop-blur border border-[#333] text-gray-200 hover:bg-[#262626]'
-            }`}
+              }`}
           >
             {showAllPopups ? 'Hide Info' : 'Show All'}
           </button>

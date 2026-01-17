@@ -55,8 +55,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fallback: Convert to base64 data URL (not recommended for production)
-    console.warn('Cloudinary not configured, using base64 fallback');
+    // Fallback: Convert to base64 data URL
+    // WARNING: This is not production-ready and will hit MongoDB's 16MB document limit
+    console.warn(
+      '⚠️ Cloudinary not configured! Using base64 fallback.\n' +
+      '   This will cause issues with large files and is not recommended for production.\n' +
+      '   Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.'
+    );
+
+    // Enforce stricter size limit for base64 to avoid MongoDB document size issues
+    // Base64 increases size by ~33%, so 5MB file becomes ~6.7MB in database
+    const base64MaxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > base64MaxSize) {
+      return NextResponse.json(
+        {
+          error: 'File too large for base64 storage. Please configure Cloudinary for larger files.',
+          maxSizeBytes: base64MaxSize,
+        },
+        { status: 413 }
+      );
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const base64 = buffer.toString('base64');
     const dataUrl = `data:${file.type};base64,${base64}`;
@@ -67,7 +86,7 @@ export async function POST(request: NextRequest) {
       fileName: file.name,
       fileSize: file.size,
       mediaType: isImage ? 'image' : 'video',
-      warning: 'Using base64 storage - configure Cloudinary for production',
+      warning: 'Using base64 storage. Configure Cloudinary for production use.',
     });
   } catch (error) {
     console.error('Upload endpoint error:', error);
@@ -91,11 +110,11 @@ async function uploadToCloudinary(file: File, isVideo: boolean): Promise<string>
   const folder = 'mobilitycursor';
   const resourceType = isVideo ? 'video' : 'image';
 
-  // Create signature string
+  // Create signature string (Cloudinary uses SHA1 by default)
   const crypto = await import('crypto');
   const signatureString = `folder=${folder}&timestamp=${timestamp}${CLOUDINARY_API_SECRET}`;
   const signature = crypto
-    .createHash('sha256')
+    .createHash('sha1')
     .update(signatureString)
     .digest('hex');
 
@@ -108,7 +127,7 @@ async function uploadToCloudinary(file: File, isVideo: boolean): Promise<string>
   uploadFormData.append('folder', folder);
 
   const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
-  
+
   const response = await fetch(cloudinaryUrl, {
     method: 'POST',
     body: uploadFormData,

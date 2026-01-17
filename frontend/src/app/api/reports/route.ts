@@ -184,6 +184,32 @@ export async function POST(request: NextRequest) {
       geoMethod
     } = body;
 
+    // Validate mediaUrl - reject blob URLs as they won't persist
+    if (!mediaUrl) {
+      return NextResponse.json(
+        { error: 'Media URL is required' },
+        { status: 400 }
+      );
+    }
+
+    if (mediaUrl.startsWith('blob:')) {
+      return NextResponse.json(
+        { error: 'Invalid media URL. Blob URLs are not allowed. Please upload the file first.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate that URL is either a valid HTTP(S) URL or a data URL
+    const isValidUrl = mediaUrl.startsWith('http://') ||
+                       mediaUrl.startsWith('https://') ||
+                       mediaUrl.startsWith('data:');
+    if (!isValidUrl) {
+      return NextResponse.json(
+        { error: 'Invalid media URL format. Must be HTTP(S) or data URL.' },
+        { status: 400 }
+      );
+    }
+
     const db = await getDatabase();
 
     // Create the report document

@@ -40,7 +40,8 @@ export function useReports() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to create report');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to create report');
         }
 
         const newReport: Report = await response.json();
@@ -48,7 +49,7 @@ export function useReports() {
         return newReport;
       } catch (error) {
         console.error('Failed to add report:', error);
-        return null;
+        throw error; // Re-throw so the caller can handle it
       } finally {
         setIsSubmitting(false);
       }

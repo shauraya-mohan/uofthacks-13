@@ -71,6 +71,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
   const [isLoadingGps, setIsLoadingGps] = useState(false);
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // User-editable content (initialized from AI analysis)
   const [editedContent, setEditedContent] = useState<ReportContent>({
@@ -97,6 +98,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     setIsLoadingGps(false);
     setAnalysis(null);
     setError(null);
+    setIsSubmitting(false);
     setEditedContent({
       title: '',
       description: '',
@@ -239,60 +241,69 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
   };
 
   const handleSubmit = async () => {
-    if (!file || !mediaUrl || !coordinates || !analysis) return;
+    if (!file || !mediaUrl || !coordinates || !analysis || isSubmitting) return;
 
+    setIsSubmitting(true);
     setError(null);
 
-    // Upload file to server (Cloudinary or base64 fallback)
-    let uploadedMediaUrl = mediaUrl;
     try {
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
+      // Upload file to server (Cloudinary or base64 fallback)
+      let uploadedMediaUrl = mediaUrl;
+      try {
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', file);
 
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
-        body: uploadFormData,
-      });
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        });
 
-      if (uploadResponse.ok) {
-        const uploadData = await uploadResponse.json();
-        uploadedMediaUrl = uploadData.url;
-        if (uploadData.warning) {
-          console.warn(uploadData.warning);
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          uploadedMediaUrl = uploadData.url;
+          if (uploadData.warning) {
+            console.warn(uploadData.warning);
+          }
+        } else {
+          const errorData = await uploadResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Upload failed');
         }
-      } else {
-        throw new Error('Upload failed');
+      } catch (uploadError) {
+        console.error('Failed to upload media:', uploadError);
+        setError('Failed to upload media. Please try again.');
+        setIsSubmitting(false);
+        return; // Don't continue without proper media URL
       }
-    } catch (uploadError) {
-      console.error('Failed to upload media, using local URL:', uploadError);
-      setError('Warning: Media upload failed. Report will be saved but media may not persist.');
-      // Continue with local mediaUrl as fallback
+
+      const report: Omit<Report, 'id' | 'createdAt'> = {
+        coordinates,
+        mediaUrl: uploadedMediaUrl,
+        mediaType: file.type.startsWith('image/') ? 'image' : 'video',
+        fileName: file.name,
+        fileSize: file.size,
+        aiDraft: {
+          title: analysis.title,
+          description: analysis.description,
+          suggestedFix: analysis.suggestedFix,
+          category: analysis.category,
+          severity: analysis.severity,
+          confidence: analysis.confidence,
+          generatedAt: new Date().toISOString(),
+          estimatedCost: analysis.estimatedCost,
+        },
+        content: editedContent,
+        geoMethod,
+        status: 'open',
+      };
+
+      await onSubmit(report);
+      resetState();
+      onClose();
+    } catch (submitError) {
+      console.error('Failed to submit report:', submitError);
+      setError('Failed to submit report. Please try again.');
+      setIsSubmitting(false);
     }
-
-    const report: Omit<Report, 'id' | 'createdAt'> = {
-      coordinates,
-      mediaUrl: uploadedMediaUrl,
-      mediaType: file.type.startsWith('image/') ? 'image' : 'video',
-      fileName: file.name,
-      fileSize: file.size,
-      aiDraft: {
-        title: analysis.title,
-        description: analysis.description,
-        suggestedFix: analysis.suggestedFix,
-        category: analysis.category,
-        severity: analysis.severity,
-        confidence: analysis.confidence,
-        generatedAt: new Date().toISOString(),
-        estimatedCost: analysis.estimatedCost,
-      },
-      content: editedContent,
-      geoMethod,
-      status: 'open',
-    };
-
-    await onSubmit(report);
-    resetState();
-    onClose();
   };
 
   const handleBackFromLocation = () => {
@@ -599,16 +610,24 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
           <div className="flex gap-3">
             <button
               onClick={handleBackToLocation}
-              className="flex-1 py-3.5 text-gray-400 hover:text-gray-200 border border-[#333] rounded-xl font-medium transition-colors"
+              disabled={isSubmitting}
+              className="flex-1 py-3.5 text-gray-400 hover:text-gray-200 border border-[#333] rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Back
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!editedContent.title.trim() || !editedContent.description.trim()}
-              className="flex-1 py-3.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={!editedContent.title.trim() || !editedContent.description.trim() || isSubmitting}
+              className="flex-1 py-3.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
-              Submit Report
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit Report'
+              )}
             </button>
           </div>
           {/* Safe area padding for mobile */}

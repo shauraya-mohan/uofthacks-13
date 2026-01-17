@@ -48,14 +48,6 @@ export default function AdminSidebar({
 
   return (
     <div className="w-80 bg-[#1a1a1a] border-l border-[#333] flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-[#333]">
-        <h2 className="text-lg font-semibold text-gray-100">Responsibility Areas</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Draw polygons on the map to define areas
-        </p>
-      </div>
-
       {/* Stats */}
       <div className="p-4 bg-[#141414] border-b border-[#333] grid grid-cols-2 gap-4">
         <div>

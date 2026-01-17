@@ -64,43 +64,9 @@ export default function HomePage() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0f0f0f]">
-      {/* Header */}
-      <header className="bg-[#1a1a1a] border-b border-[#333] px-4 py-3 flex items-center justify-between z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-100">Mobilify</h1>
-            {/* <p className="text-sm text-gray-500">Report accessibility barriers</p> */}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <a
-            href="/admin"
-            className="text-sm text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            Admin
-          </a>
-          <button
-            onClick={handleReportButtonClick}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Report Barrier
-          </button>
-        </div>
-      </header>
-
-      {/* Map */}
-      <main className="flex-1 relative">
+    <div className="h-screen w-screen bg-[#0f0f0f]">
+      {/* Full-screen Map */}
+      <main className="absolute inset-0">
         {isLoaded ? (
           <Map
             reports={reports}
@@ -113,8 +79,27 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Floating controls - top left */}
+        <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+          <a
+            href="/admin"
+            className="px-4 py-2.5 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] text-gray-200 rounded-xl font-medium hover:bg-[#262626] transition-colors shadow-lg text-sm"
+          >
+            Admin
+          </a>
+          <button
+            onClick={handleReportButtonClick}
+            className="px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-500 transition-colors shadow-lg flex items-center gap-2 text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Report Barrier
+          </button>
+        </div>
+
         {/* Legend */}
-        <div className="absolute bottom-4 left-4 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl p-3 z-10">
+        <div className="absolute bottom-4 left-4 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-xl shadow-xl p-3 z-10">
           <p className="text-xs font-medium text-gray-400 mb-2">Severity</p>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">

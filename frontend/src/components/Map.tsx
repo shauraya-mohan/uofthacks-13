@@ -53,6 +53,8 @@ interface MapProps {
   initialCenter?: Coordinates | null;
   // Fly to this position when it changes (used for GPS recenter)
   flyToPosition?: Coordinates | null;
+  // Disable panning but keep zoom enabled (for locked pin state)
+  disablePan?: boolean;
   className?: string;
 }
 
@@ -67,6 +69,7 @@ export default function Map({
   onCenterChange,
   initialCenter,
   flyToPosition,
+  disablePan = false,
   className = '',
 }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -94,7 +97,7 @@ export default function Map({
     onPinClickRef.current = onPinClick;
   }, [onPinClick]);
 
-  // Initialize map (2D)
+  // Initialize map with 3D buildings
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
@@ -113,12 +116,43 @@ export default function Map({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/standard-satellite',
+      style: 'mapbox://styles/mapbox/standard',
       center,
-      zoom: initialCenter ? 16 : DEFAULT_ZOOM, // Zoom in more if we have a specific location
+      zoom: initialCenter ? 17 : DEFAULT_ZOOM,
+      pitch: 45, // Tilt for 3D perspective
+      bearing: -15, // Slight rotation for better 3D view
+      antialias: true, // Smoother 3D rendering
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+    map.current.on('style.load', () => {
+      if (!map.current) return;
+
+      // Enable 3D terrain and buildings in Mapbox Standard style
+      try {
+        map.current.setConfigProperty('basemap', 'lightPreset', 'dusk');
+        map.current.setConfigProperty('basemap', 'showPlaceLabels', true);
+        map.current.setConfigProperty('basemap', 'showPointOfInterestLabels', true);
+      } catch {
+        // Fallback for older Mapbox versions - add 3D buildings manually
+        if (!map.current.getLayer('3d-buildings')) {
+          map.current.addLayer({
+            id: '3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 14,
+            paint: {
+              'fill-extrusion-color': '#aaa',
+              'fill-extrusion-height': ['get', 'height'],
+              'fill-extrusion-base': ['get', 'min_height'],
+              'fill-extrusion-opacity': 0.8,
+            },
+          });
+        }
+      }
+    });
 
     map.current.on('load', () => {
       setMapLoaded(true);
@@ -162,6 +196,19 @@ export default function Map({
       duration: 1000,
     });
   }, [flyToPosition, mapLoaded]);
+
+  // Handle disablePan - disable dragging but keep zoom enabled
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    if (disablePan) {
+      map.current.dragPan.disable();
+      map.current.touchZoomRotate.disableRotation();
+    } else {
+      map.current.dragPan.enable();
+      map.current.touchZoomRotate.enableRotation();
+    }
+  }, [disablePan, mapLoaded]);
 
   // Handle map clicks
   useEffect(() => {

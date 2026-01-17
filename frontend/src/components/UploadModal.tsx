@@ -58,7 +58,6 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
   const [geoError, setGeoError] = useState<string | null>(null);
   const [isLoadingGps, setIsLoadingGps] = useState(false);
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,7 +74,6 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     setGeoError(null);
     setIsLoadingGps(false);
     setAnalysis(null);
-    setIsAnalyzing(false);
     setError(null);
   }, [mediaUrl]);
 
@@ -143,6 +141,9 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
   };
 
   const handleCenterChange = (coords: Coordinates) => {
+    // Only update coordinates if we're in location step (not during analyzing/review)
+    if (step !== 'location') return;
+
     setCoordinates(coords);
     // Once user moves the map, mark as manual
     if (gpsCoordinates) {
@@ -174,7 +175,6 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     if (!file || !coordinates) return;
 
     setStep('analyzing');
-    setIsAnalyzing(true);
     setError(null);
 
     try {
@@ -198,8 +198,6 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     } catch {
       setError('Failed to analyze media. Please try again.');
       setStep('location');
-    } finally {
-      setIsAnalyzing(false);
     }
   };
 
@@ -230,12 +228,21 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     setGpsCoordinates(null);
     setFlyToPosition(null);
     setGeoError(null);
+    setAnalysis(null);
+  };
+
+  const handleBackToLocation = () => {
+    setStep('location');
+    setAnalysis(null);
+    setError(null);
   };
 
   if (!isOpen) return null;
 
-  // Full-screen location picker (Uber-style)
-  if (step === 'location') {
+  // Full-screen map view for location, analyzing, and review steps
+  const isFullScreenStep = step === 'location' || step === 'analyzing' || step === 'review';
+
+  if (isFullScreenStep) {
     return (
       <div className="fixed inset-0 z-50 bg-[#0f0f0f]">
         {/* Full-screen map with centered pin */}
@@ -246,24 +253,30 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
             onCenterChange={handleCenterChange}
             initialCenter={coordinates}
             flyToPosition={flyToPosition}
+            disablePan={step === 'analyzing' || step === 'review'}
           />
         </div>
 
-        <div className='absolute top-4 left-4 z-20'>
-          {/* Back button - top left */}
+        {/* Top controls */}
+        <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+          {/* Back button */}
           <button
-            onClick={handleBackFromLocation}
-            className="w-10 h-10 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-full flex items-center justify-center shadow-lg hover:bg-[#262626] transition-colors"
+            onClick={step === 'location' ? handleBackFromLocation : handleBackToLocation}
+            disabled={step === 'analyzing'}
+            className="w-10 h-10 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-full flex items-center justify-center shadow-lg hover:bg-[#262626] transition-colors disabled:opacity-50"
           >
             <svg className="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          {/* GPS recenter button - top right */}
+        </div>
+
+        {/* GPS recenter button - only show during location step */}
+        {step === 'location' && (
           <button
             onClick={handleRecenterToGps}
             disabled={isLoadingGps}
-            className="top-4 w-10 h-10 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-full flex items-center justify-center shadow-lg hover:bg-[#262626] transition-colors disabled:opacity-50"
+            className="absolute top-4 right-4 z-20 w-10 h-10 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-full flex items-center justify-center shadow-lg hover:bg-[#262626] transition-colors disabled:opacity-50"
             title="Recenter to GPS"
           >
             {isLoadingGps ? (
@@ -275,62 +288,149 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
               </svg>
             )}
           </button>
-        </div>
+        )}
 
-        {/* Bottom sheet with image preview */}
+        {/* Bottom sheet - content changes based on step */}
         <div className="absolute bottom-0 left-0 right-0 z-20">
-          {/* Curved top edge */}
           <div className="bg-[#1a1a1a] rounded-t-3xl border-t border-[#333] shadow-2xl">
             {/* Handle bar */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-10 h-1 bg-[#404040] rounded-full" />
             </div>
 
-            {/* Content */}
+            {/* Content area */}
             <div className="px-4 pb-4 sm:px-6 sm:pb-6">
               {/* Error message */}
-              {geoError && (
+              {(geoError || error) && (
                 <div className="mb-3 p-2 bg-yellow-900/30 border border-yellow-800 rounded-lg text-yellow-400 text-xs sm:text-sm">
-                  {geoError}
+                  {geoError || error}
                 </div>
               )}
 
-              {/* Image preview and info */}
-              <div className="flex gap-3 sm:gap-4 items-start">
-                {/* Thumbnail */}
-                {mediaUrl && file && (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#262626] flex-shrink-0">
-                    {file.type.startsWith('image/') ? (
-                      <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <video src={mediaUrl} className="w-full h-full object-cover" />
+              {/* LOCATION STEP */}
+              {step === 'location' && (
+                <>
+                  <div className="flex gap-3 sm:gap-4 items-start">
+                    {/* Thumbnail */}
+                    {mediaUrl && file && (
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#262626] flex-shrink-0">
+                        {file.type.startsWith('image/') ? (
+                          <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <video src={mediaUrl} className="w-full h-full object-cover" />
+                        )}
+                      </div>
                     )}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-gray-100 font-semibold text-sm sm:text-base">Confirm barrier location</h3>
+                      <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
+                        Pan the map to position the pin
+                      </p>
+                      {coordinates && (
+                        <p className="text-gray-600 text-xs mt-1 truncate">
+                          {coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}
+                          {geoMethod === 'auto' && ' (GPS)'}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                )}
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-gray-100 font-semibold text-sm sm:text-base">Confirm barrier location</h3>
-                  <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-                    Pan the map to position the pin
-                  </p>
-                  {coordinates && (
-                    <p className="text-gray-600 text-xs mt-1 truncate">
-                      {coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}
-                      {geoMethod === 'auto' && ' (GPS)'}
-                    </p>
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={!coordinates}
+                    className="w-full mt-4 py-3 sm:py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Confirm Location
+                  </button>
+                </>
+              )}
+
+              {/* ANALYZING STEP */}
+              {step === 'analyzing' && (
+                <div className="flex gap-3 sm:gap-4 items-center">
+                  {/* Thumbnail */}
+                  {mediaUrl && file && (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#262626] flex-shrink-0">
+                      {file.type.startsWith('image/') ? (
+                        <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <video src={mediaUrl} className="w-full h-full object-cover" />
+                      )}
+                    </div>
                   )}
-                </div>
-              </div>
 
-              {/* Confirm button */}
-              <button
-                onClick={handleAnalyze}
-                disabled={!coordinates || isAnalyzing}
-                className="w-full mt-4 py-3 sm:py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Confirm Location
-              </button>
+                  {/* Loading state */}
+                  <div className="flex-1 min-w-0 flex items-center gap-3">
+                    <div className="animate-spin w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full flex-shrink-0" />
+                    <div>
+                      <h3 className="text-gray-100 font-semibold text-sm sm:text-base">Analyzing barrier...</h3>
+                      <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
+                        AI is identifying the issue
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* REVIEW STEP */}
+              {step === 'review' && analysis && (
+                <>
+                  <div className="flex gap-3 sm:gap-4 items-start">
+                    {/* Thumbnail */}
+                    {mediaUrl && file && (
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#262626] flex-shrink-0">
+                        {file.type.startsWith('image/') ? (
+                          <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <video src={mediaUrl} className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Analysis info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: SEVERITY_COLORS[analysis.severity] }}
+                        />
+                        <h3 className="text-gray-100 font-semibold text-sm sm:text-base truncate">
+                          {CATEGORY_LABELS[analysis.category]}
+                        </h3>
+                      </div>
+                      <p className="text-gray-500 text-xs sm:text-sm line-clamp-2">
+                        {analysis.summary}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-xs text-gray-600 capitalize">
+                          {analysis.severity} severity
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          {Math.round(analysis.confidence * 100)}% confidence
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={handleBackToLocation}
+                      className="flex-1 py-3 sm:py-3.5 text-gray-400 hover:text-gray-200 border border-[#333] rounded-xl font-medium text-sm sm:text-base transition-colors"
+                    >
+                      Adjust Location
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      className="flex-1 py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-green-500 transition-colors"
+                    >
+                      Submit Report
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Safe area padding for mobile */}
@@ -341,11 +441,11 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     );
   }
 
-  // Floating modal for other steps (no header bar)
+  // Floating modal for select and converting steps
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="relative bg-[#1a1a1a] border border-[#333] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Floating close button - top right */}
+      <div className="relative bg-[#1a1a1a] border border-[#333] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        {/* Close button */}
         <button
           onClick={handleClose}
           className="absolute top-3 right-3 z-10 w-8 h-8 bg-[#262626] hover:bg-[#333] rounded-full flex items-center justify-center transition-colors"
@@ -356,14 +456,14 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
         </button>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+        <div className="p-5 sm:p-6">
           {error && (
             <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-400 text-sm">
               {error}
             </div>
           )}
 
-          {/* Step 1: File Selection */}
+          {/* File Selection */}
           {step === 'select' && (
             <div className="space-y-4">
               <div className="pr-8">
@@ -390,10 +490,16 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
                 onChange={handleFileSelect}
                 className="hidden"
               />
+              <button
+                onClick={handleClose}
+                className="w-full py-2.5 text-gray-400 hover:text-gray-200 transition-colors text-sm"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
-          {/* Step 1.5: Converting HEIC */}
+          {/* Converting HEIC */}
           {step === 'converting' && (
             <div className="py-8 sm:py-12 text-center">
               <div className="animate-spin w-10 h-10 sm:w-12 sm:h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
@@ -401,112 +507,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
               <p className="text-gray-500 text-xs sm:text-sm mt-1">Please wait</p>
             </div>
           )}
-
-          {/* Step 3: Analyzing */}
-          {step === 'analyzing' && (
-            <div className="py-8 sm:py-12 text-center">
-              {/* Image preview while analyzing */}
-              {mediaUrl && file && (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl overflow-hidden bg-[#262626] mx-auto mb-4">
-                  {file.type.startsWith('image/') ? (
-                    <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <video src={mediaUrl} className="w-full h-full object-cover" />
-                  )}
-                </div>
-              )}
-              <div className="animate-spin w-8 h-8 sm:w-10 sm:h-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-              <p className="text-gray-300 font-medium text-sm sm:text-base">Analyzing barrier...</p>
-              <p className="text-gray-500 text-xs sm:text-sm mt-1">AI is identifying the issue</p>
-            </div>
-          )}
-
-          {/* Step 4: Review */}
-          {step === 'review' && analysis && (
-            <div className="space-y-4">
-              <div className="pr-8">
-                <h2 className="text-xl font-semibold text-gray-100 mb-1">Review Report</h2>
-              </div>
-
-              {mediaUrl && file && (
-                <div className="rounded-xl overflow-hidden bg-[#262626]">
-                  {file.type.startsWith('image/') ? (
-                    <img src={mediaUrl} alt="Preview" className="w-full h-40 sm:h-48 object-contain" />
-                  ) : (
-                    <video src={mediaUrl} controls className="w-full h-40 sm:h-48 object-contain" />
-                  )}
-                </div>
-              )}
-
-              {/* AI Analysis Results */}
-              <div className="bg-[#262626] border border-[#333] rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3">
-                <h3 className="font-semibold text-gray-100 text-sm sm:text-base">AI Analysis</h3>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-xs sm:text-sm">Category</span>
-                  <span className="font-medium text-gray-200 text-xs sm:text-sm">{CATEGORY_LABELS[analysis.category]}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-xs sm:text-sm">Severity</span>
-                  <span
-                    className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                    style={{ backgroundColor: SEVERITY_COLORS[analysis.severity] }}
-                  >
-                    {analysis.severity.charAt(0).toUpperCase() + analysis.severity.slice(1)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-xs sm:text-sm">Confidence</span>
-                  <span className="font-medium text-gray-200 text-xs sm:text-sm">{Math.round(analysis.confidence * 100)}%</span>
-                </div>
-
-                <div className="pt-2 border-t border-[#333]">
-                  <span className="text-gray-500 text-xs sm:text-sm block mb-1">Summary</span>
-                  <p className="text-gray-300 text-xs sm:text-sm">{analysis.summary}</p>
-                </div>
-              </div>
-
-              {coordinates && (
-                <p className="text-xs sm:text-sm text-gray-500">
-                  Location: {coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}
-                </p>
-              )}
-            </div>
-          )}
         </div>
-
-        {/* Footer */}
-        {(step === 'select' || step === 'review') && (
-          <div className="px-5 py-4 sm:px-6 border-t border-[#333] bg-[#141414]">
-            {step === 'select' && (
-              <button
-                onClick={handleClose}
-                className="w-full py-2.5 sm:py-3 text-gray-400 hover:text-gray-200 transition-colors text-sm sm:text-base"
-              >
-                Cancel
-              </button>
-            )}
-
-            {step === 'review' && (
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStep('location')}
-                  className="flex-1 py-2.5 sm:py-3 text-gray-400 hover:text-gray-200 transition-colors text-sm sm:text-base"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  className="flex-1 py-2.5 sm:py-3 bg-green-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-green-500 transition-colors"
-                >
-                  Submit Report
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

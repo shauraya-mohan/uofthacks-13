@@ -84,7 +84,7 @@ export default function AdminMap({
     reportsRef.current = reports;
   }, [reports]);
 
-  // Initialize map and draw controls (2D)
+  // Initialize map with 3D buildings and draw controls
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
@@ -98,19 +98,16 @@ export default function AdminMap({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/standard-satellite',
+      style: 'mapbox://styles/mapbox/standard',
       center: [DEFAULT_CENTER.lng, DEFAULT_CENTER.lat],
       zoom: DEFAULT_ZOOM,
-    });
-
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    map.current.on('load', () => {
-      setMapLoaded(true);
+      pitch: 45, // Tilt for 3D perspective
+      bearing: -15, // Slight rotation for better 3D view
+      antialias: true, // Smoother 3D rendering
     });
 
     // Initialize Mapbox Draw
-    draw.current = new MapboxDraw({
+    const drawControl = new MapboxDraw({
       displayControlsDefault: false,
       controls: {
         polygon: true,
@@ -181,7 +178,41 @@ export default function AdminMap({
       ],
     });
 
-    map.current.addControl(draw.current, 'top-left');
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    map.current.addControl(drawControl, 'top-left');
+    draw.current = drawControl;
+
+    map.current.on('style.load', () => {
+      if (!map.current) return;
+
+      // Enable 3D terrain and buildings in Mapbox Standard style
+      try {
+        map.current.setConfigProperty('basemap', 'lightPreset', 'dusk');
+        map.current.setConfigProperty('basemap', 'showPlaceLabels', true);
+        map.current.setConfigProperty('basemap', 'showPointOfInterestLabels', true);
+      } catch {
+        // Fallback for older Mapbox versions - add 3D buildings manually
+        if (!map.current.getLayer('3d-buildings')) {
+          map.current.addLayer({
+            id: '3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 14,
+            paint: {
+              'fill-extrusion-color': '#aaa',
+              'fill-extrusion-height': ['get', 'height'],
+              'fill-extrusion-base': ['get', 'min_height'],
+              'fill-extrusion-opacity': 0.8,
+            },
+          });
+        }
+      }
+    });
+
+    map.current.on('load', () => {
+      setMapLoaded(true);
+    });
 
     return () => {
       map.current?.remove();
@@ -225,7 +256,7 @@ export default function AdminMap({
 
   // Sync areas to draw control
   useEffect(() => {
-    if (!draw.current) return;
+    if (!draw.current || !mapLoaded) return;
 
     // Clear existing and rebuild
     draw.current.deleteAll();
@@ -241,7 +272,7 @@ export default function AdminMap({
         areaIdMap.current.set(featureIds[0], area.id);
       }
     });
-  }, [areas]);
+  }, [areas, mapLoaded]);
 
   // Create marker element with hover popup
   const createMarkerElement = useCallback(

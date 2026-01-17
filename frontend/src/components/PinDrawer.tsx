@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Report } from '@/lib/types';
 import { CATEGORY_LABELS, SEVERITY_COLORS } from '@/lib/types';
 import ImageCompareSlider from './ImageCompareSlider';
@@ -40,48 +40,54 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
 
+  // Keep a ref to the latest report for use in async callbacks
+  const reportRef = useRef(report);
+  reportRef.current = report;
+
   // Use fullReport if available, otherwise use the passed report
   const displayReport = fullReport || report;
 
   // Fetch full report data (including media URL) when drawer opens
   useEffect(() => {
+    // Reset when drawer closes or report changes
     if (!isOpen || !report?.id) {
       setFullReport(null);
+      setIsLoadingReport(false);
       return;
     }
 
-    // If report already has mediaUrl that's a short URL (like Cloudinary), use it directly
-    if (report.mediaUrl && report.mediaUrl.length > 0 && report.mediaUrl.length < 1000) {
-      setFullReport(report);
-      return;
-    }
+    const reportId = report.id;
 
-    // Fetch full report to get media URL with timeout
+    // Always fetch the full report to ensure we have the media URL
+    // The list API excludes media URL to save bandwidth
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     async function fetchFullReport() {
       setIsLoadingReport(true);
+      setFullReport(null); // Clear previous report while loading
+
       try {
-        const response = await fetch(`/api/reports/${report!.id}`, {
+        const response = await fetch(`/api/reports/${reportId}`, {
           signal: controller.signal,
         });
+
         if (response.ok) {
           const data = await response.json();
           setFullReport(data);
         } else {
           console.error('Failed to fetch full report:', response.status);
-          setFullReport(report);
+          // Fall back to the passed report (may not have media URL)
+          setFullReport(reportRef.current);
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
-          console.warn('Report fetch timed out after 30s');
-        } else {
-          console.error('Failed to fetch full report:', error);
+          // Don't log or set state if aborted - component probably unmounted or report changed
+          return;
         }
-        setFullReport(report);
+        console.error('Failed to fetch full report:', error);
+        setFullReport(reportRef.current);
       } finally {
-        clearTimeout(timeoutId);
         setIsLoadingReport(false);
       }
     }
@@ -92,7 +98,7 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [isOpen, report]);
+  }, [isOpen, report?.id]); // Use report?.id instead of report to avoid unnecessary re-fetches
 
   // Reset state when drawer closes or report changes
   const handleClose = useCallback(() => {

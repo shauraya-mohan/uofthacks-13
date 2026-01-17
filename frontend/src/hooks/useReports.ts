@@ -12,8 +12,8 @@ export function useReports() {
   useEffect(() => {
     async function fetchReports() {
       try {
-        // Exclude media URL by default for faster loading (base64 data can be large)
-        const response = await fetch('/api/reports?includeMedia=false');
+        // Include media URLs - Cloudinary URLs are short, so this is fine
+        const response = await fetch('/api/reports');
         if (response.ok) {
           const data = await response.json();
           setReports(data);
@@ -112,8 +112,8 @@ export function useReports() {
 
   const refreshReports = useCallback(async () => {
     try {
-      // Exclude media URL by default for faster loading
-      const response = await fetch('/api/reports?includeMedia=false');
+      // Include media URLs - Cloudinary URLs are short
+      const response = await fetch('/api/reports');
       if (response.ok) {
         const data = await response.json();
         setReports(data);

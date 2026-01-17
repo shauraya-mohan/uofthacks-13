@@ -57,7 +57,31 @@ export function useAreas() {
       setAreas((prev) =>
         prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
       );
-      // Note: Could add PATCH endpoint if needed
+      
+      // Persist to database
+      try {
+        const response = await fetch(`/api/areas/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updates),
+        });
+
+        if (!response.ok) {
+          // Revert optimistic update on failure
+          setAreas((prev) =>
+            prev.map((a) => (a.id === id ? { ...a } : a))
+          );
+          console.error('Failed to update area');
+        }
+      } catch (error) {
+        console.error('Failed to update area:', error);
+        // Revert optimistic update on error
+        setAreas((prev) =>
+          prev.map((a) => (a.id === id ? { ...a } : a))
+        );
+      }
     },
     []
   );

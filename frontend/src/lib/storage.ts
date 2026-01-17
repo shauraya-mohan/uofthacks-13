@@ -1,4 +1,12 @@
 // localStorage helpers for MobilityCursor
+// 
+// ⚠️ DEPRECATED: This file is kept for backwards compatibility only.
+// All data is now stored in MongoDB via API routes:
+// - Reports: /api/reports
+// - Areas: /api/areas
+// 
+// The hooks (useReports, useAreas) now use the API exclusively.
+// This localStorage code is no longer used in the application.
 
 import type { Report, AdminArea } from './types';
 

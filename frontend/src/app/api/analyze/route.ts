@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { Category, Severity, AnalyzeResponse } from '@/lib/types';
+import { analyzeVideoWithTwelveLabs, isTwelveLabsConfigured } from '@/lib/twelvelabs';
 
 // Categories for deterministic mock
 const CATEGORIES: Category[] = [
@@ -199,25 +200,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 20MB)
-    const maxSize = 20 * 1024 * 1024;
+    // Validate file size (max 50MB for videos, 20MB for images)
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 20 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File size must be under 20MB' },
+        { error: `File size must be under ${maxSize / (1024 * 1024)}MB` },
         { status: 400 }
       );
     }
 
-    // Try real AI analysis first (only for images currently)
+    const buffer = Buffer.from(await file.arrayBuffer());
     let result: AnalyzeResponse | null = null;
 
-    if (isImage && process.env.OPENAI_API_KEY) {
-      const buffer = Buffer.from(await file.arrayBuffer());
+    // Try real AI analysis
+    if (isVideo && isTwelveLabsConfigured()) {
+      // Analyze video with TwelveLabs
+      console.log('Analyzing video with TwelveLabs...');
+      result = await analyzeVideoWithTwelveLabs(buffer, file.name);
+    } else if (isImage && process.env.OPENAI_API_KEY) {
+      // Analyze image with OpenAI
+      console.log('Analyzing image with OpenAI...');
       result = await analyzeWithOpenAI(buffer, file.type);
     }
 
     // Fall back to mock analysis
     if (!result) {
+      console.log('Using mock analysis fallback');
       // Simulate processing delay for demo effect
       await new Promise((resolve) => setTimeout(resolve, 800));
       result = generateMockAnalysis(file.name, file.type, file.size);

@@ -204,24 +204,37 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
   const handleSubmit = async () => {
     if (!file || !mediaUrl || !coordinates || !analysis) return;
 
-    // Convert blob URL to base64 data URL so it persists in localStorage
-    let persistentMediaUrl = mediaUrl;
+    setError(null);
+    
+    // Upload file to server (Cloudinary or base64 fallback)
+    let uploadedMediaUrl = mediaUrl;
     try {
-      const response = await fetch(mediaUrl);
-      const blob = await response.blob();
-      persistentMediaUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadFormData,
       });
-    } catch {
-      // If conversion fails, use original URL (won't persist but at least works for session)
-      console.warn('Failed to convert media to base64');
+
+      if (uploadResponse.ok) {
+        const uploadData = await uploadResponse.json();
+        uploadedMediaUrl = uploadData.url;
+        if (uploadData.warning) {
+          console.warn(uploadData.warning);
+        }
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (uploadError) {
+      console.error('Failed to upload media, using local URL:', uploadError);
+      setError('Warning: Media upload failed. Report will be saved but media may not persist.');
+      // Continue with local mediaUrl as fallback
     }
 
     const report: Omit<Report, 'id' | 'createdAt'> = {
       coordinates,
-      mediaUrl: persistentMediaUrl,
+      mediaUrl: uploadedMediaUrl,
       mediaType: file.type.startsWith('image/') ? 'image' : 'video',
       fileName: file.name,
       fileSize: file.size,

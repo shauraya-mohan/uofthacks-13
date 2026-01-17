@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-// DELETE /api/areas/[id] - Delete an area
+// DELETE /api/reports/[id] - Delete a report
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,34 +12,34 @@ export async function DELETE(
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { error: 'Invalid area ID' },
+        { error: 'Invalid report ID' },
         { status: 400 }
       );
     }
 
     const db = await getDatabase();
-    const result = await db.collection('areas').deleteOne({
+    const result = await db.collection('reports').deleteOne({
       _id: new ObjectId(id),
     });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
-        { error: 'Area not found' },
+        { error: 'Report not found' },
         { status: 404 }
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete area:', error);
+    console.error('Failed to delete report:', error);
     return NextResponse.json(
-      { error: 'Failed to delete area' },
+      { error: 'Failed to delete report' },
       { status: 500 }
     );
   }
 }
 
-// PATCH /api/areas/[id] - Update area
+// PATCH /api/reports/[id] - Update report status
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -49,37 +49,34 @@ export async function PATCH(
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { error: 'Invalid area ID' },
+        { error: 'Invalid report ID' },
         { status: 400 }
       );
     }
 
     const body = await request.json();
-    const { name, priority, isActive } = body;
+    const { status } = body;
 
-    const updateData: any = {};
-    
-    if (name !== undefined) {
-      updateData.name = name;
-    }
-    
-    if (priority !== undefined) {
-      updateData.priority = priority;
-    }
-    
-    if (isActive !== undefined) {
-      updateData.isActive = isActive;
-    }
-
-    if (Object.keys(updateData).length === 0) {
+    // Validate status
+    const validStatuses = ['open', 'acknowledged', 'resolved'];
+    if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
-        { error: 'No valid fields to update' },
+        { error: 'Invalid status. Must be: open, acknowledged, or resolved' },
         { status: 400 }
       );
     }
 
     const db = await getDatabase();
-    const result = await db.collection('areas').findOneAndUpdate(
+    
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+    
+    if (status) {
+      updateData.status = status;
+    }
+
+    const result = await db.collection('reports').findOneAndUpdate(
       { _id: new ObjectId(id) },
       { $set: updateData },
       { returnDocument: 'after' }
@@ -87,25 +84,21 @@ export async function PATCH(
 
     if (!result) {
       return NextResponse.json(
-        { error: 'Area not found' },
+        { error: 'Report not found' },
         { status: 404 }
       );
     }
 
-    // Transform to match frontend format
-    const updatedArea = {
-      id: result._id?.toString(),
-      name: result.name,
-      geometry: result.polygon,
-      createdAt: result.createdAt.toISOString(),
-    };
-
-    return NextResponse.json(updatedArea);
+    return NextResponse.json({
+      success: true,
+      report: result,
+    });
   } catch (error) {
-    console.error('Failed to update area:', error);
+    console.error('Failed to update report:', error);
     return NextResponse.json(
-      { error: 'Failed to update area' },
+      { error: 'Failed to update report' },
       { status: 500 }
     );
   }
 }
+

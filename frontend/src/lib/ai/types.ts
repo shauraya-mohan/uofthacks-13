@@ -6,6 +6,15 @@
 import type { Category, Severity } from '../types';
 
 /**
+ * Estimated repair cost
+ */
+export interface EstimatedCost {
+  amount: number;      // Cost in CAD dollars
+  unit: string;        // e.g., "total", "per unit", "per meter"
+  quantity?: number;   // Optional quantity for calculation
+}
+
+/**
  * Result of AI analysis on an image or video
  */
 export interface AnalysisResult {
@@ -15,6 +24,7 @@ export interface AnalysisResult {
   category: Category;
   severity: Severity;
   confidence: number;
+  estimatedCost?: EstimatedCost; // AI-estimated repair cost
 }
 
 /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Report } from '@/lib/types';
 import { CATEGORY_LABELS, SEVERITY_COLORS } from '@/lib/types';
 import ImageCompareSlider from './ImageCompareSlider';
@@ -36,18 +36,75 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [fixedImageUrl, setFixedImageUrl] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [fullReport, setFullReport] = useState<Report | null>(null);
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
+
+  // Use fullReport if available, otherwise use the passed report
+  const displayReport = fullReport || report;
+
+  // Fetch full report data (including media URL) when drawer opens
+  useEffect(() => {
+    if (!isOpen || !report?.id) {
+      setFullReport(null);
+      return;
+    }
+
+    // If report already has mediaUrl that's a short URL (like Cloudinary), use it directly
+    if (report.mediaUrl && report.mediaUrl.length > 0 && report.mediaUrl.length < 1000) {
+      setFullReport(report);
+      return;
+    }
+
+    // Fetch full report to get media URL with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    async function fetchFullReport() {
+      setIsLoadingReport(true);
+      try {
+        const response = await fetch(`/api/reports/${report!.id}`, {
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setFullReport(data);
+        } else {
+          console.error('Failed to fetch full report:', response.status);
+          setFullReport(report);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn('Report fetch timed out after 30s');
+        } else {
+          console.error('Failed to fetch full report:', error);
+        }
+        setFullReport(report);
+      } finally {
+        clearTimeout(timeoutId);
+        setIsLoadingReport(false);
+      }
+    }
+
+    fetchFullReport();
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [isOpen, report]);
 
   // Reset state when drawer closes or report changes
   const handleClose = useCallback(() => {
     setFixedImageUrl(null);
     setGenerateError(null);
     setIsGenerating(false);
+    setFullReport(null);
     onClose();
   }, [onClose]);
 
   // Generate fixed image visualization
   const handleGenerateFix = useCallback(async () => {
-    if (!report || report.mediaType !== 'image') return;
+    if (!displayReport || displayReport.mediaType !== 'image') return;
 
     setIsGenerating(true);
     setGenerateError(null);
@@ -58,15 +115,15 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
       let imageBase64 = '';
       let mimeType = 'image/jpeg';
 
-      if (report.mediaUrl.startsWith('data:')) {
-        const matches = report.mediaUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (displayReport.mediaUrl.startsWith('data:')) {
+        const matches = displayReport.mediaUrl.match(/^data:([^;]+);base64,(.+)$/);
         if (matches) {
           mimeType = matches[1];
           imageBase64 = matches[2];
         }
       } else {
         // Fetch image and convert to base64
-        const response = await fetch(report.mediaUrl);
+        const response = await fetch(displayReport.mediaUrl);
         const blob = await response.blob();
         mimeType = blob.type;
         const buffer = await blob.arrayBuffer();
@@ -81,9 +138,9 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
         body: JSON.stringify({
           imageBase64,
           mimeType,
-          description: report.content.description,
-          suggestedFix: report.content.suggestedFix,
-          category: report.content.category,
+          description: displayReport.content.description,
+          suggestedFix: displayReport.content.suggestedFix,
+          category: displayReport.content.category,
         }),
       });
 
@@ -100,11 +157,11 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
     } finally {
       setIsGenerating(false);
     }
-  }, [report]);
+  }, [displayReport]);
 
-  if (!isOpen || !report) return null;
+  if (!isOpen || !displayReport) return null;
 
-  const statusInfo = STATUS_LABELS[report.status] || STATUS_LABELS.open;
+  const statusInfo = STATUS_LABELS[displayReport.status] || STATUS_LABELS.open;
 
   return (
     <>
@@ -119,7 +176,7 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
         {/* Header */}
         <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-100">{report.content.title}</h2>
+            <h2 className="text-lg font-semibold text-gray-100">{displayReport.content.title}</h2>
             <div className="flex items-center gap-2 mt-1">
               <span
                 className="px-2 py-0.5 rounded text-xs font-medium"
@@ -127,7 +184,7 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
               >
                 {statusInfo.label}
               </span>
-              {report.content.isEdited && (
+              {displayReport.content.isEdited && (
                 <span className="text-xs text-gray-500">Edited</span>
               )}
             </div>
@@ -147,10 +204,29 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
           {/* Media Preview with AI Fix Visualization */}
           <div className="space-y-3">
             {/* Image/Video Display */}
-            {fixedImageUrl ? (
+            {isLoadingReport ? (
+              /* Loading state for media */
+              <div className="relative rounded-lg overflow-hidden bg-[#262626] h-56 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Loading media...</p>
+                </div>
+              </div>
+            ) : !displayReport.mediaUrl ? (
+              /* No media available */
+              <div className="relative rounded-lg overflow-hidden bg-[#262626] h-56 flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-sm">Media not available</p>
+                  <p className="text-xs mt-1 opacity-70">Large file - tap to retry</p>
+                </div>
+              </div>
+            ) : fixedImageUrl ? (
               /* Before/After Comparison Slider */
               <ImageCompareSlider
-                beforeImage={report.mediaUrl}
+                beforeImage={displayReport.mediaUrl}
                 afterImage={fixedImageUrl}
                 beforeLabel="Current"
                 afterLabel="Fixed"
@@ -158,15 +234,15 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
             ) : (
               /* Original Image/Video with Loading Overlay */
               <div className="relative rounded-lg overflow-hidden bg-[#262626]">
-                {report.mediaType === 'image' ? (
+                {displayReport.mediaType === 'image' ? (
                   <img
-                    src={report.mediaUrl}
+                    src={displayReport.mediaUrl}
                     alt="Barrier"
                     className={`w-full h-56 object-contain transition-all duration-300 ${isGenerating ? 'blur-sm scale-105' : ''}`}
                   />
                 ) : (
                   <video
-                    src={report.mediaUrl}
+                    src={displayReport.mediaUrl}
                     controls={!isGenerating}
                     className="w-full h-56 object-contain"
                   />
@@ -207,7 +283,7 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
             )}
 
             {/* Generate Fix Button / Reset Button */}
-            {report.mediaType === 'image' && (
+            {displayReport.mediaType === 'image' && (
               <div className="flex gap-2">
                 {fixedImageUrl ? (
                   <>
@@ -257,26 +333,26 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
           {/* Category and Severity badges */}
           <div className="flex items-center gap-3 flex-wrap">
             <span className="px-3 py-1 bg-[#262626] border border-[#333] rounded-full text-sm font-medium text-gray-300">
-              {CATEGORY_LABELS[report.content.category]}
+              {CATEGORY_LABELS[displayReport.content.category]}
             </span>
             <span
               className="px-3 py-1 rounded-full text-sm font-medium text-white"
-              style={{ backgroundColor: SEVERITY_COLORS[report.content.severity] }}
+              style={{ backgroundColor: SEVERITY_COLORS[displayReport.content.severity] }}
             >
-              {report.content.severity.charAt(0).toUpperCase() + report.content.severity.slice(1)} Severity
+              {displayReport.content.severity.charAt(0).toUpperCase() + displayReport.content.severity.slice(1)} Severity
             </span>
           </div>
 
           {/* Description */}
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
-            <p className="text-gray-300 leading-relaxed">{report.content.description}</p>
+            <p className="text-gray-300 leading-relaxed">{displayReport.content.description}</p>
           </div>
 
           {/* Suggested Fix */}
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-2">Suggested Fix</h3>
-            <p className="text-gray-300 leading-relaxed">{report.content.suggestedFix}</p>
+            <p className="text-gray-300 leading-relaxed">{displayReport.content.suggestedFix}</p>
           </div>
 
           {/* AI Analysis Info */}
@@ -288,27 +364,65 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
               <h3 className="text-sm font-medium text-gray-400">AI Analysis</h3>
             </div>
             <div className="text-sm text-gray-500">
-              <p>Confidence: {Math.round(report.aiDraft.confidence * 100)}%</p>
-              {report.content.isEdited && (
+              <p>Confidence: {Math.round(displayReport.aiDraft.confidence * 100)}%</p>
+              {displayReport.content.isEdited && (
                 <p className="text-blue-400 mt-1">Content was edited by user</p>
               )}
             </div>
           </div>
 
+          {/* Estimated Cost (Admin Only) */}
+          {displayReport.aiDraft.estimatedCost && (
+            <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/50 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="text-sm font-medium text-emerald-400">Estimated Repair Cost</h3>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-gray-400 text-sm">Unit Cost</span>
+                  <span className="text-emerald-300 font-semibold">
+                    ${displayReport.aiDraft.estimatedCost.amount.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CAD
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-gray-400 text-sm">Unit</span>
+                  <span className="text-gray-300 text-sm">{displayReport.aiDraft.estimatedCost.unit}</span>
+                </div>
+                {displayReport.aiDraft.estimatedCost.quantity && displayReport.aiDraft.estimatedCost.quantity > 1 && (
+                  <>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-gray-400 text-sm">Quantity</span>
+                      <span className="text-gray-300 text-sm">{displayReport.aiDraft.estimatedCost.quantity}</span>
+                    </div>
+                    <div className="pt-2 mt-2 border-t border-emerald-700/50 flex items-baseline justify-between">
+                      <span className="text-gray-300 text-sm font-medium">Total Estimate</span>
+                      <span className="text-emerald-200 font-bold text-lg">
+                        ${(displayReport.aiDraft.estimatedCost.amount * displayReport.aiDraft.estimatedCost.quantity).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CAD
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Details Grid */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h4 className="text-sm font-medium text-gray-500">Location Method</h4>
-              <p className="text-gray-200 font-medium capitalize">{report.geoMethod}</p>
+              <p className="text-gray-200 font-medium capitalize">{displayReport.geoMethod}</p>
             </div>
             <div>
               <h4 className="text-sm font-medium text-gray-500">Reported</h4>
-              <p className="text-gray-300 text-sm">{formatDate(report.createdAt)}</p>
+              <p className="text-gray-300 text-sm">{formatDate(displayReport.createdAt)}</p>
             </div>
             <div className="col-span-2">
               <h4 className="text-sm font-medium text-gray-500">Coordinates</h4>
               <p className="text-gray-300 text-sm">
-                {report.coordinates.lat.toFixed(6)}, {report.coordinates.lng.toFixed(6)}
+                {displayReport.coordinates.lat.toFixed(6)}, {displayReport.coordinates.lng.toFixed(6)}
               </p>
             </div>
           </div>
@@ -317,11 +431,11 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
           <div className="pt-4 border-t border-[#333]">
             <h3 className="text-sm font-medium text-gray-500 mb-2">File Details</h3>
             <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
-              <span>{report.fileName}</span>
+              <span>{displayReport.fileName}</span>
               <span className="text-gray-600">|</span>
-              <span>{formatFileSize(report.fileSize)}</span>
+              <span>{formatFileSize(displayReport.fileSize)}</span>
               <span className="text-gray-600">|</span>
-              <span className="capitalize">{report.mediaType}</span>
+              <span className="capitalize">{displayReport.mediaType}</span>
             </div>
           </div>
         </div>

@@ -19,6 +19,13 @@ export interface Coordinates {
   lat: number;
 }
 
+// Estimated repair cost (admin only)
+export interface EstimatedCost {
+  amount: number;      // Cost in CAD dollars
+  unit: string;        // e.g., "total", "per unit", "per meter"
+  quantity?: number;   // Optional quantity for calculation
+}
+
 // AI-generated draft content (returned from /api/analyze)
 export interface AnalyzeResponse {
   title: string;
@@ -27,6 +34,7 @@ export interface AnalyzeResponse {
   category: Category;
   severity: Severity;
   confidence: number;
+  estimatedCost?: EstimatedCost; // AI-estimated repair cost (admin only)
 }
 
 // AI draft stored in database (preserved for analytics/ML improvement)
@@ -38,6 +46,7 @@ export interface AiDraft {
   severity: Severity;
   confidence: number;
   generatedAt: string; // ISO timestamp
+  estimatedCost?: EstimatedCost; // AI-estimated repair cost (admin only)
 }
 
 // User's final content (may be edited from AI draft)

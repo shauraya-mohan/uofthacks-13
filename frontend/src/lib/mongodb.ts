@@ -41,6 +41,13 @@ export async function getDatabase(): Promise<Db> {
   return client.db('mobilify');
 }
 
+// Estimated repair cost
+export interface DbEstimatedCost {
+  amount: number;      // Cost in CAD dollars
+  unit: string;        // e.g., "total", "per unit", "per meter"
+  quantity?: number;   // Optional quantity for calculation
+}
+
 // Database types matching our schema
 export interface DbReport {
   _id?: string;
@@ -68,6 +75,7 @@ export interface DbReport {
     severity: 'low' | 'medium' | 'high';
     confidence: number;
     generatedAt: Date;
+    estimatedCost?: DbEstimatedCost; // AI-estimated repair cost
   };
 
   // User's final content (may be edited from AI draft)

@@ -283,6 +283,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
         severity: analysis.severity,
         confidence: analysis.confidence,
         generatedAt: new Date().toISOString(),
+        estimatedCost: analysis.estimatedCost,
       },
       content: editedContent,
       geoMethod,

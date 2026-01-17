@@ -14,9 +14,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '0', 10);
-    const limit = parseInt(searchParams.get('limit') || '0', 10);
+    // Default limit to 100 reports to prevent slow queries
+    const limit = parseInt(searchParams.get('limit') || '100', 10);
     const status = searchParams.get('status'); // Optional status filter
     const severity = searchParams.get('severity'); // Optional severity filter
+    const includeMedia = searchParams.get('includeMedia') !== 'false'; // Default true for backwards compat
 
     const db = await getDatabase();
 
@@ -30,24 +32,58 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count for pagination metadata
-    const total = await db.collection<DbReport>('reports').countDocuments(filter);
+    // Use estimatedDocumentCount for better performance when no filter is applied
+    const hasFilter = Object.keys(filter).length > 0;
+    const total = hasFilter
+      ? await db.collection<DbReport>('reports').countDocuments(filter)
+      : await db.collection<DbReport>('reports').estimatedDocumentCount();
 
-    // Build query with optional pagination
-    let query = db
+    // Build query with pagination - always apply limit to avoid slow queries
+    const effectiveLimit = Math.min(limit, 500); // Cap at 500 to prevent huge queries
+
+    // Use projection to fetch needed fields
+    // Exclude media.url by default to avoid loading large base64 data
+    // Short Cloudinary URLs will be lost, but single report fetch will get them
+    const projection = includeMedia
+      ? {
+          _id: 1,
+          createdAt: 1,
+          location: 1,
+          media: 1,
+          aiDraft: 1,
+          content: 1,
+          geoMethod: 1,
+          status: 1,
+          ai: 1,
+        }
+      : {
+          _id: 1,
+          createdAt: 1,
+          location: 1,
+          'media.type': 1,
+          'media.fileName': 1,
+          'media.fileSize': 1,
+          aiDraft: 1,
+          content: 1,
+          geoMethod: 1,
+          status: 1,
+          ai: 1,
+        };
+
+    const cursor = db
       .collection<DbReport>('reports')
       .find(filter)
-      .sort({ createdAt: -1 });
+      .project(projection)
+      .sort({ createdAt: -1 })
+      .limit(effectiveLimit);
 
-    // Apply pagination only if both page and limit are provided and valid
+    // Apply pagination if page is specified
     if (page > 0 && limit > 0) {
       const skip = (page - 1) * limit;
-      query = query.skip(skip).limit(limit);
-    } else if (limit > 0) {
-      // Just limit without page
-      query = query.limit(limit);
+      cursor.skip(skip);
     }
 
-    const reports = await query.toArray();
+    const reports = await cursor.toArray();
 
     // Transform to match frontend Report type
     // Handle both old schema (ai field) and new schema (aiDraft/content fields)
@@ -89,6 +125,7 @@ export async function GET(request: NextRequest) {
               severity: report.aiDraft?.severity ?? severity,
               confidence: confidence,
               generatedAt: toISOString(report.aiDraft?.generatedAt),
+              estimatedCost: report.aiDraft?.estimatedCost,
             },
             content: {
               title: title || 'Accessibility Barrier',
@@ -181,6 +218,7 @@ export async function POST(request: NextRequest) {
         severity: aiDraft.severity,
         confidence: aiDraft.confidence,
         generatedAt: now,
+        estimatedCost: aiDraft.estimatedCost,
       },
       content: {
         title: content.title,
@@ -234,6 +272,7 @@ export async function POST(request: NextRequest) {
         severity: report.aiDraft.severity,
         confidence: report.aiDraft.confidence,
         generatedAt: report.aiDraft.generatedAt.toISOString(),
+        estimatedCost: report.aiDraft.estimatedCost,
       },
       content: {
         title: report.content.title,

@@ -12,7 +12,8 @@ export function useReports() {
   useEffect(() => {
     async function fetchReports() {
       try {
-        const response = await fetch('/api/reports');
+        // Exclude media URL by default for faster loading (base64 data can be large)
+        const response = await fetch('/api/reports?includeMedia=false');
         if (response.ok) {
           const data = await response.json();
           setReports(data);
@@ -69,6 +70,40 @@ export function useReports() {
     }
   }, []);
 
+  const updateReport = useCallback(async (id: string, updates: Partial<Report>) => {
+    try {
+      const response = await fetch(`/api/reports/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setReports((prev) =>
+          prev.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  ...updates,
+                  aiDraft: updates.aiDraft
+                    ? { ...r.aiDraft, ...updates.aiDraft }
+                    : r.aiDraft,
+                }
+              : r
+          )
+        );
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to update report:', error);
+      return false;
+    }
+  }, []);
+
   const clearReports = useCallback(() => {
     // This is mainly for UI state - typically wouldn't clear all from DB
     setReports([]);
@@ -76,7 +111,8 @@ export function useReports() {
 
   const refreshReports = useCallback(async () => {
     try {
-      const response = await fetch('/api/reports');
+      // Exclude media URL by default for faster loading
+      const response = await fetch('/api/reports?includeMedia=false');
       if (response.ok) {
         const data = await response.json();
         setReports(data);
@@ -92,6 +128,7 @@ export function useReports() {
     isSubmitting,
     addReport,
     removeReport,
+    updateReport,
     clearReports,
     refreshReports,
   };

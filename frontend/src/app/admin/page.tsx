@@ -9,6 +9,7 @@ import { getReportsInArea, getAreasContainingPoint } from '@/lib/geo';
 import AdminPasswordGate from '@/components/AdminPasswordGate';
 import AdminSidebar from '@/components/AdminSidebar';
 import PinDrawer from '@/components/PinDrawer';
+import KanbanBoard from '@/components/KanbanBoard';
 import Toast, { useToast } from '@/components/Toast';
 
 const AdminMap = dynamic(() => import('@/components/AdminMap'), {
@@ -21,7 +22,7 @@ const AdminMap = dynamic(() => import('@/components/AdminMap'), {
 });
 
 export default function AdminPage() {
-  const { reports, isLoaded: reportsLoaded, refreshReports } = useReports();
+  const { reports, isLoaded: reportsLoaded, refreshReports, updateReport } = useReports();
   const { areas, isLoaded: areasLoaded, addArea, updateArea, removeArea } = useAreas();
   const { toasts, addToast, dismissToast } = useToast();
 
@@ -29,6 +30,7 @@ export default function AdminPage() {
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isKanbanOpen, setIsKanbanOpen] = useState(false);
 
   const prevReportsRef = useRef<Report[]>([]);
 
@@ -112,6 +114,18 @@ export default function AdminPage() {
     setSelectedReport(null);
   };
 
+  const handleUpdateReport = useCallback(
+    async (reportId: string, updates: Partial<Report>) => {
+      const success = await updateReport(reportId, updates);
+      if (success) {
+        addToast('Report updated', 'success');
+      } else {
+        addToast('Failed to update report', 'error');
+      }
+    },
+    [updateReport, addToast]
+  );
+
   if (!isAuthenticated) {
     return <AdminPasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
   }
@@ -184,6 +198,7 @@ export default function AdminPage() {
             onAreaSelect={setSelectedAreaId}
             onAreaDelete={handleAreaDeleted}
             onAreaRename={handleAreaRename}
+            onOpenKanban={() => setIsKanbanOpen(true)}
           />
         )}
       </div>
@@ -193,6 +208,16 @@ export default function AdminPage() {
         report={selectedReport}
         isOpen={isDrawerOpen}
         onClose={handleDrawerClose}
+      />
+
+      {/* Kanban Board */}
+      <KanbanBoard
+        isOpen={isKanbanOpen}
+        onClose={() => setIsKanbanOpen(false)}
+        reports={reports}
+        areas={areas}
+        selectedAreaId={selectedAreaId}
+        onUpdateReport={handleUpdateReport}
       />
 
       {/* Toast Notifications */}

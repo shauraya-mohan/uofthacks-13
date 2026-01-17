@@ -51,6 +51,7 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
 
     setIsGenerating(true);
     setGenerateError(null);
+    setFixedImageUrl(null); // Clear previous result to show loading preview
 
     try {
       // Extract base64 data from data URL or fetch from URL

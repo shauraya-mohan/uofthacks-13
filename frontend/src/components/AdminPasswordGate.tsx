@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { analytics } from '@/lib/analytics';
 
 interface AdminPasswordGateProps {
   onAuthenticated: () => void;
@@ -17,7 +16,6 @@ export default function AdminPasswordGate({ onAuthenticated }: AdminPasswordGate
     const correctPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin';
 
     if (password === correctPassword) {
-      analytics.adminLoginSuccess();
       onAuthenticated();
     } else {
       setError(true);

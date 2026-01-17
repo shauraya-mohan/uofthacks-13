@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import type { Report, AdminArea } from '@/lib/types';
 import { getReportsInArea } from '@/lib/geo';
-import { analytics } from '@/lib/analytics';
 
 interface AdminSidebarProps {
   reports: Report[];
@@ -34,9 +33,6 @@ export default function AdminSidebar({
   const handleAreaClick = (area: AdminArea) => {
     const newSelectedId = selectedAreaId === area.id ? null : area.id;
     onAreaSelect(newSelectedId);
-    if (newSelectedId) {
-      analytics.adminAreaSelected(area.id, areaCounts.get(area.id) || 0);
-    }
   };
 
   const handleRename = (area: AdminArea) => {

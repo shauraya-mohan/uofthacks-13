@@ -4,7 +4,6 @@ import { useState, useRef, useCallback } from 'react';
 import type { Coordinates, AnalyzeResponse, Report, Category, Severity, ReportContent } from '@/lib/types';
 import { CATEGORY_LABELS, SEVERITY_COLORS } from '@/lib/types';
 import { getCurrentPosition } from '@/lib/geo';
-import { analytics } from '@/lib/analytics';
 import Map from './Map';
 
 type UploadStep = 'select' | 'converting' | 'location' | 'analyzing' | 'edit';
@@ -156,8 +155,6 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     setFile(processedFile);
     setMediaUrl(processedUrl);
 
-    analytics.mediaSelected(isImage ? 'image' : 'video');
-
     setStep('location');
     try {
       const pos = await getCurrentPosition();
@@ -235,8 +232,6 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
       });
 
       setStep('edit'); // Go to edit step instead of review
-
-      analytics.aiResultShown(result.category, result.severity, result.confidence, geoMethod);
     } catch {
       setError('Failed to analyze media. Please try again.');
       setStep('location');

@@ -1,7 +1,8 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Required for mapbox-gl to work properly
+  transpilePackages: ['mapbox-gl'],
 };
 
 export default nextConfig;

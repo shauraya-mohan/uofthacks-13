@@ -50,9 +50,26 @@ export async function GET(request: NextRequest) {
     const reports = await query.toArray();
 
     // Transform to match frontend Report type
+    // Handle both old schema (ai field) and new schema (aiDraft/content fields)
     const transformedReports = reports
       .map((report) => {
         try {
+          // Support old schema: 'ai' field with summary instead of title/description
+          const legacyAi = (report as Record<string, unknown>).ai as {
+            category?: string;
+            severity?: string;
+            summary?: string;
+            confidence?: number;
+          } | undefined;
+
+          // Determine values from new schema or fall back to legacy schema
+          const category = report.content?.category ?? report.aiDraft?.category ?? legacyAi?.category ?? 'other';
+          const severity = report.content?.severity ?? report.aiDraft?.severity ?? legacyAi?.severity ?? 'medium';
+          const title = report.content?.title ?? report.aiDraft?.title ?? '';
+          const description = report.content?.description ?? report.aiDraft?.description ?? legacyAi?.summary ?? '';
+          const suggestedFix = report.content?.suggestedFix ?? report.aiDraft?.suggestedFix ?? '';
+          const confidence = report.aiDraft?.confidence ?? legacyAi?.confidence ?? 0;
+
           return {
             id: report._id?.toString(),
             createdAt: toISOString(report.createdAt),
@@ -65,20 +82,20 @@ export async function GET(request: NextRequest) {
             fileName: report.media?.fileName ?? '',
             fileSize: report.media?.fileSize ?? 0,
             aiDraft: {
-              title: report.aiDraft?.title ?? '',
-              description: report.aiDraft?.description ?? '',
-              suggestedFix: report.aiDraft?.suggestedFix ?? '',
-              category: report.aiDraft?.category ?? 'other',
-              severity: report.aiDraft?.severity ?? 'medium',
-              confidence: report.aiDraft?.confidence ?? 0,
+              title: report.aiDraft?.title ?? title,
+              description: report.aiDraft?.description ?? description,
+              suggestedFix: report.aiDraft?.suggestedFix ?? suggestedFix,
+              category: report.aiDraft?.category ?? category,
+              severity: report.aiDraft?.severity ?? severity,
+              confidence: confidence,
               generatedAt: toISOString(report.aiDraft?.generatedAt),
             },
             content: {
-              title: report.content?.title ?? '',
-              description: report.content?.description ?? '',
-              suggestedFix: report.content?.suggestedFix ?? '',
-              category: report.content?.category ?? 'other',
-              severity: report.content?.severity ?? 'medium',
+              title: title || 'Accessibility Barrier',
+              description: description,
+              suggestedFix: suggestedFix,
+              category: category,
+              severity: severity,
               isEdited: report.content?.isEdited ?? false,
             },
             geoMethod: report.geoMethod ?? 'manual',

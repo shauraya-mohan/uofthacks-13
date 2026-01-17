@@ -22,7 +22,7 @@ const AdminMap = dynamic(() => import('@/components/AdminMap'), {
 });
 
 export default function AdminPage() {
-  const { reports, isLoaded: reportsLoaded } = useReports();
+  const { reports, isLoaded: reportsLoaded, refreshReports } = useReports();
   const { areas, isLoaded: areasLoaded, addArea, updateArea, removeArea } = useAreas();
   const { toasts, addToast, dismissToast } = useToast();
 
@@ -37,6 +37,17 @@ export default function AdminPage() {
     initAmplitude();
   }, []);
 
+  // Poll for new reports every 5 seconds when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      refreshReports();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, refreshReports]);
+
   useEffect(() => {
     if (!reportsLoaded || !areasLoaded || areas.length === 0) return;
 
@@ -48,8 +59,8 @@ export default function AdminPage() {
       if (containingAreas.length > 0) {
         const areaNames = containingAreas.map((a) => a.name).join(', ');
         addToast(
-          `New ${report.analysis.severity} severity report in: ${areaNames}`,
-          report.analysis.severity === 'high' ? 'warning' : 'info'
+          `New ${report.content.severity} severity report in: ${areaNames}`,
+          report.content.severity === 'high' ? 'warning' : 'info'
         );
       }
     });
@@ -98,7 +109,7 @@ export default function AdminPage() {
   );
 
   const handlePinClick = useCallback((report: Report) => {
-    analytics.pinOpened(report.id, report.analysis.category, report.analysis.severity);
+    analytics.pinOpened(report.id, report.content.category, report.content.severity);
     setSelectedReport(report);
     setIsDrawerOpen(true);
   }, []);

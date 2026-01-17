@@ -157,7 +157,7 @@ function SeverityBadge({
   area: AdminArea;
 }) {
   const count = getReportsInArea(reports, area).filter(
-    (r) => r.analysis.severity === severity
+    (r) => r.content.severity === severity
   ).length;
 
   if (count === 0) return null;

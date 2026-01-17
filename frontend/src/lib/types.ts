@@ -2,6 +2,8 @@
 
 export type Severity = 'low' | 'medium' | 'high';
 
+export type ReportStatus = 'draft' | 'open' | 'acknowledged' | 'in_progress' | 'resolved';
+
 export type Category =
   | 'broken_sidewalk'
   | 'missing_ramp'
@@ -17,22 +19,48 @@ export interface Coordinates {
   lat: number;
 }
 
+// AI-generated draft content (returned from /api/analyze)
 export interface AnalyzeResponse {
+  title: string;
+  description: string;
+  suggestedFix: string;
   category: Category;
   severity: Severity;
-  summary: string;
   confidence: number;
+}
+
+// AI draft stored in database (preserved for analytics/ML improvement)
+export interface AiDraft {
+  title: string;
+  description: string;
+  suggestedFix: string;
+  category: Category;
+  severity: Severity;
+  confidence: number;
+  generatedAt: string; // ISO timestamp
+}
+
+// User's final content (may be edited from AI draft)
+export interface ReportContent {
+  title: string;
+  description: string;
+  suggestedFix: string;
+  category: Category;
+  severity: Severity;
+  isEdited: boolean; // true if user modified AI draft
 }
 
 export interface Report {
   id: string;
   coordinates: Coordinates;
-  mediaUrl: string; // Object URL for local preview
+  mediaUrl: string;
   mediaType: 'image' | 'video';
   fileName: string;
   fileSize: number;
-  analysis: AnalyzeResponse;
+  aiDraft: AiDraft;
+  content: ReportContent;
   geoMethod: 'auto' | 'manual';
+  status: ReportStatus;
   createdAt: string; // ISO timestamp
 }
 
@@ -63,6 +91,7 @@ export interface AnalyticsEventProperties {
   area_id?: string;
   report_id?: string;
   report_count?: number;
+  is_edited?: boolean;
 }
 
 // Severity color mapping

@@ -1,13 +1,26 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import type { Coordinates, AnalyzeResponse, Report } from '@/lib/types';
+import type { Coordinates, AnalyzeResponse, Report, Category, Severity, ReportContent } from '@/lib/types';
 import { CATEGORY_LABELS, SEVERITY_COLORS } from '@/lib/types';
 import { getCurrentPosition } from '@/lib/geo';
 import { analytics } from '@/lib/analytics';
 import Map from './Map';
 
-type UploadStep = 'select' | 'converting' | 'location' | 'analyzing' | 'review';
+type UploadStep = 'select' | 'converting' | 'location' | 'analyzing' | 'edit';
+
+const CATEGORIES: Category[] = [
+  'broken_sidewalk',
+  'missing_ramp',
+  'blocked_path',
+  'steep_grade',
+  'poor_lighting',
+  'narrow_passage',
+  'uneven_surface',
+  'other',
+];
+
+const SEVERITIES: Severity[] = ['low', 'medium', 'high'];
 
 // Check if file is HEIC format
 function isHeicFile(file: File): boolean {
@@ -60,6 +73,16 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // User-editable content (initialized from AI analysis)
+  const [editedContent, setEditedContent] = useState<ReportContent>({
+    title: '',
+    description: '',
+    suggestedFix: '',
+    category: 'other',
+    severity: 'medium',
+    isEdited: false,
+  });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = useCallback(() => {
@@ -75,6 +98,14 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     setIsLoadingGps(false);
     setAnalysis(null);
     setError(null);
+    setEditedContent({
+      title: '',
+      description: '',
+      suggestedFix: '',
+      category: 'other',
+      severity: 'medium',
+      isEdited: false,
+    });
   }, [mediaUrl]);
 
   const handleClose = () => {
@@ -192,7 +223,18 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
 
       const result: AnalyzeResponse = await response.json();
       setAnalysis(result);
-      setStep('review');
+
+      // Initialize editable content from AI analysis
+      setEditedContent({
+        title: result.title,
+        description: result.description,
+        suggestedFix: result.suggestedFix,
+        category: result.category,
+        severity: result.severity,
+        isEdited: false,
+      });
+
+      setStep('edit'); // Go to edit step instead of review
 
       analytics.aiResultShown(result.category, result.severity, result.confidence, geoMethod);
     } catch {
@@ -205,7 +247,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     if (!file || !mediaUrl || !coordinates || !analysis) return;
 
     setError(null);
-    
+
     // Upload file to server (Cloudinary or base64 fallback)
     let uploadedMediaUrl = mediaUrl;
     try {
@@ -238,8 +280,18 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
       mediaType: file.type.startsWith('image/') ? 'image' : 'video',
       fileName: file.name,
       fileSize: file.size,
-      analysis,
+      aiDraft: {
+        title: analysis.title,
+        description: analysis.description,
+        suggestedFix: analysis.suggestedFix,
+        category: analysis.category,
+        severity: analysis.severity,
+        confidence: analysis.confidence,
+        generatedAt: new Date().toISOString(),
+      },
+      content: editedContent,
       geoMethod,
+      status: 'open',
     };
 
     await onSubmit(report);
@@ -267,10 +319,13 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
 
   if (!isOpen) return null;
 
-  // Full-screen map view for location, analyzing, and review steps
-  const isFullScreenStep = step === 'location' || step === 'analyzing' || step === 'review';
+  // Full-screen map view for location and analyzing steps
+  const isMapStep = step === 'location' || step === 'analyzing';
 
-  if (isFullScreenStep) {
+  // Full-screen form for edit step
+  const isFormStep = step === 'edit';
+
+  if (isMapStep) {
     return (
       <div className="fixed inset-0 z-50 bg-[#0f0f0f]">
         {/* Full-screen map with centered pin */}
@@ -281,7 +336,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
             onCenterChange={handleCenterChange}
             initialCenter={coordinates}
             flyToPosition={flyToPosition}
-            disablePan={step === 'analyzing' || step === 'review'}
+            disablePan={step === 'analyzing'}
           />
         </div>
 
@@ -289,7 +344,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
         <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
           {/* Back button */}
           <button
-            onClick={step === 'location' ? handleBackFromLocation : handleBackToLocation}
+            onClick={handleBackFromLocation}
             disabled={step === 'analyzing'}
             className="w-10 h-10 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-full flex items-center justify-center shadow-lg hover:bg-[#262626] transition-colors disabled:opacity-50"
           >
@@ -401,69 +456,167 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
                   </div>
                 </div>
               )}
-
-              {/* REVIEW STEP */}
-              {step === 'review' && analysis && (
-                <>
-                  <div className="flex gap-3 sm:gap-4 items-start">
-                    {/* Thumbnail */}
-                    {mediaUrl && file && (
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#262626] flex-shrink-0">
-                        {file.type.startsWith('image/') ? (
-                          <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
-                        ) : (
-                          <video src={mediaUrl} className="w-full h-full object-cover" />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Analysis info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: SEVERITY_COLORS[analysis.severity] }}
-                        />
-                        <h3 className="text-gray-100 font-semibold text-sm sm:text-base truncate">
-                          {CATEGORY_LABELS[analysis.category]}
-                        </h3>
-                      </div>
-                      <p className="text-gray-500 text-xs sm:text-sm line-clamp-2">
-                        {analysis.summary}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs text-gray-600 capitalize">
-                          {analysis.severity} severity
-                        </span>
-                        <span className="text-xs text-gray-600">
-                          {Math.round(analysis.confidence * 100)}% confidence
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div className="flex gap-3 mt-4">
-                    <button
-                      onClick={handleBackToLocation}
-                      className="flex-1 py-3 sm:py-3.5 text-gray-400 hover:text-gray-200 border border-[#333] rounded-xl font-medium text-sm sm:text-base transition-colors"
-                    >
-                      Adjust Location
-                    </button>
-                    <button
-                      onClick={handleSubmit}
-                      className="flex-1 py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-green-500 transition-colors"
-                    >
-                      Submit Report
-                    </button>
-                  </div>
-                </>
-              )}
             </div>
 
             {/* Safe area padding for mobile */}
             <div className="h-safe-area-inset-bottom bg-[#1a1a1a]" />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Full-screen form for edit and review steps
+  if (isFormStep && analysis) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#0f0f0f] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-[#0f0f0f]/95 backdrop-blur border-b border-[#333]">
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              onClick={handleBackToLocation}
+              className="w-10 h-10 bg-[#1a1a1a] border border-[#333] rounded-full flex items-center justify-center hover:bg-[#262626] transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h2 className="text-gray-100 font-semibold">Edit Report Details</h2>
+            <div className="w-10" /> {/* Spacer for centering */}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 pb-32">
+          {/* Error message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Media preview */}
+          <div className="mb-6">
+            {mediaUrl && file && (
+              <div className="rounded-xl overflow-hidden bg-[#1a1a1a] aspect-video">
+                {file.type.startsWith('image/') ? (
+                  <img src={mediaUrl} alt="Preview" className="w-full h-full object-contain" />
+                ) : (
+                  <video src={mediaUrl} controls className="w-full h-full object-contain" />
+                )}
+              </div>
+            )}
+            {coordinates && (
+              <p className="text-gray-600 text-xs mt-2 text-center">
+                Location: {coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}
+                {geoMethod === 'auto' && ' (GPS)'}
+              </p>
+            )}
+          </div>
+
+          {/* EDIT STEP - Editable form */}
+          {step === 'edit' && (
+            <div className="space-y-5">
+              {/* AI confidence indicator */}
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3">
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>AI Analysis ({Math.round(analysis.confidence * 100)}% confidence)</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Review and edit the AI-generated content below
+                </p>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={editedContent.title}
+                  onChange={(e) => setEditedContent(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#333] rounded-xl text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+                  placeholder="Enter a title for this report"
+                />
+              </div>
+
+              {/* Category & Severity */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                  <select
+                    value={editedContent.category}
+                    onChange={(e) => setEditedContent(prev => ({ ...prev, category: e.target.value as Category }))}
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#333] rounded-xl text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+                  >
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Severity</label>
+                  <select
+                    value={editedContent.severity}
+                    onChange={(e) => setEditedContent(prev => ({ ...prev, severity: e.target.value as Severity }))}
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#333] rounded-xl text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+                  >
+                    {SEVERITIES.map(sev => (
+                      <option key={sev} value={sev}>{sev.charAt(0).toUpperCase() + sev.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                <textarea
+                  value={editedContent.description}
+                  onChange={(e) => setEditedContent(prev => ({ ...prev, description: e.target.value }))}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#333] rounded-xl text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors resize-none"
+                  placeholder="Describe the accessibility barrier..."
+                />
+              </div>
+
+              {/* Suggested Fix */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Suggested Fix</label>
+                <textarea
+                  value={editedContent.suggestedFix}
+                  onChange={(e) => setEditedContent(prev => ({ ...prev, suggestedFix: e.target.value }))}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#333] rounded-xl text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors resize-none"
+                  placeholder="Recommend how to fix this issue..."
+                />
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Bottom action bar */}
+        <div className="fixed bottom-0 left-0 right-0 bg-[#0f0f0f]/95 backdrop-blur border-t border-[#333] p-4">
+          <div className="flex gap-3">
+            <button
+              onClick={handleBackToLocation}
+              className="flex-1 py-3.5 text-gray-400 hover:text-gray-200 border border-[#333] rounded-xl font-medium transition-colors"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!editedContent.title.trim() || !editedContent.description.trim()}
+              className="flex-1 py-3.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Submit Report
+            </button>
+          </div>
+          {/* Safe area padding for mobile */}
+          <div className="h-safe-area-inset-bottom" />
         </div>
       </div>
     );

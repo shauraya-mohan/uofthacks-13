@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase, DbReport } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
+// Helper to safely convert date to ISO string
+function toISOString(date: Date | string | undefined): string {
+  if (!date) return new Date().toISOString();
+  if (typeof date === 'string') return date;
+  return date.toISOString();
+}
+
 // GET /api/reports - List all reports with optional pagination
 export async function GET(request: NextRequest) {
   try {
@@ -14,12 +21,12 @@ export async function GET(request: NextRequest) {
     const db = await getDatabase();
 
     // Build query filter
-    const filter: any = {};
-    if (status && ['open', 'acknowledged', 'resolved'].includes(status)) {
+    const filter: Record<string, unknown> = {};
+    if (status && ['draft', 'open', 'acknowledged', 'in_progress', 'resolved'].includes(status)) {
       filter.status = status;
     }
     if (severity && ['low', 'medium', 'high'].includes(severity)) {
-      filter['ai.severity'] = severity;
+      filter['content.severity'] = severity;
     }
 
     // Get total count for pagination metadata
@@ -43,26 +50,46 @@ export async function GET(request: NextRequest) {
     const reports = await query.toArray();
 
     // Transform to match frontend Report type
-    const transformedReports = reports.map((report) => ({
-      id: report._id?.toString(),
-      createdAt: report.createdAt.toISOString(),
-      coordinates: {
-        lat: report.location.coordinates[1],
-        lng: report.location.coordinates[0],
-      },
-      mediaUrl: report.media.url,
-      mediaType: report.media.type,
-      fileName: report.media.fileName,
-      fileSize: report.media.fileSize,
-      analysis: {
-        category: report.ai.category,
-        severity: report.ai.severity,
-        summary: report.ai.summary,
-        confidence: report.ai.confidence,
-      },
-      geoMethod: report.geoMethod,
-      status: report.status,
-    }));
+    const transformedReports = reports
+      .map((report) => {
+        try {
+          return {
+            id: report._id?.toString(),
+            createdAt: toISOString(report.createdAt),
+            coordinates: {
+              lat: report.location?.coordinates?.[1] ?? 0,
+              lng: report.location?.coordinates?.[0] ?? 0,
+            },
+            mediaUrl: report.media?.url ?? '',
+            mediaType: report.media?.type ?? 'image',
+            fileName: report.media?.fileName ?? '',
+            fileSize: report.media?.fileSize ?? 0,
+            aiDraft: {
+              title: report.aiDraft?.title ?? '',
+              description: report.aiDraft?.description ?? '',
+              suggestedFix: report.aiDraft?.suggestedFix ?? '',
+              category: report.aiDraft?.category ?? 'other',
+              severity: report.aiDraft?.severity ?? 'medium',
+              confidence: report.aiDraft?.confidence ?? 0,
+              generatedAt: toISOString(report.aiDraft?.generatedAt),
+            },
+            content: {
+              title: report.content?.title ?? '',
+              description: report.content?.description ?? '',
+              suggestedFix: report.content?.suggestedFix ?? '',
+              category: report.content?.category ?? 'other',
+              severity: report.content?.severity ?? 'medium',
+              isEdited: report.content?.isEdited ?? false,
+            },
+            geoMethod: report.geoMethod ?? 'manual',
+            status: report.status ?? 'open',
+          };
+        } catch (err) {
+          console.error('Failed to transform report:', report._id, err);
+          return null;
+        }
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
 
     // Return with pagination metadata if pagination was requested
     if (page > 0 && limit > 0) {
@@ -92,12 +119,30 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { coordinates, mediaUrl, mediaType, fileName, fileSize, analysis, geoMethod } = body;
+    const {
+      coordinates,
+      mediaUrl,
+      mediaType,
+      fileName,
+      fileSize,
+      aiDraft,  // AI-generated content
+      content,  // User's final content (may be edited)
+      geoMethod
+    } = body;
 
     const db = await getDatabase();
 
     // Create the report document
     const now = new Date();
+
+    // Determine if user edited the AI draft
+    const isEdited =
+      content.title !== aiDraft.title ||
+      content.description !== aiDraft.description ||
+      content.suggestedFix !== aiDraft.suggestedFix ||
+      content.category !== aiDraft.category ||
+      content.severity !== aiDraft.severity;
+
     const report: DbReport = {
       createdAt: now,
       updatedAt: now,
@@ -111,11 +156,22 @@ export async function POST(request: NextRequest) {
         fileName,
         fileSize,
       },
-      ai: {
-        category: analysis.category,
-        severity: analysis.severity,
-        summary: analysis.summary,
-        confidence: analysis.confidence,
+      aiDraft: {
+        title: aiDraft.title,
+        description: aiDraft.description,
+        suggestedFix: aiDraft.suggestedFix,
+        category: aiDraft.category,
+        severity: aiDraft.severity,
+        confidence: aiDraft.confidence,
+        generatedAt: now,
+      },
+      content: {
+        title: content.title,
+        description: content.description,
+        suggestedFix: content.suggestedFix,
+        category: content.category,
+        severity: content.severity,
+        isEdited,
       },
       geoMethod,
       status: 'open',
@@ -153,11 +209,22 @@ export async function POST(request: NextRequest) {
       mediaType: report.media.type,
       fileName: report.media.fileName,
       fileSize: report.media.fileSize,
-      analysis: {
-        category: report.ai.category,
-        severity: report.ai.severity,
-        summary: report.ai.summary,
-        confidence: report.ai.confidence,
+      aiDraft: {
+        title: report.aiDraft.title,
+        description: report.aiDraft.description,
+        suggestedFix: report.aiDraft.suggestedFix,
+        category: report.aiDraft.category,
+        severity: report.aiDraft.severity,
+        confidence: report.aiDraft.confidence,
+        generatedAt: report.aiDraft.generatedAt.toISOString(),
+      },
+      content: {
+        title: report.content.title,
+        description: report.content.description,
+        suggestedFix: report.content.suggestedFix,
+        category: report.content.category,
+        severity: report.content.severity,
+        isEdited: report.content.isEdited,
       },
       geoMethod: report.geoMethod,
       status: report.status,

@@ -43,8 +43,8 @@ export default function HomePage() {
       if (newReport) {
         analytics.reportSubmitted(
           newReport.id,
-          newReport.analysis.category,
-          newReport.analysis.severity,
+          newReport.content.category,
+          newReport.content.severity,
           newReport.mediaType,
           newReport.geoMethod
         );
@@ -57,7 +57,7 @@ export default function HomePage() {
   );
 
   const handlePinClick = useCallback((report: Report) => {
-    analytics.pinOpened(report.id, report.analysis.category, report.analysis.severity);
+    analytics.pinOpened(report.id, report.content.category, report.content.severity);
     setSelectedReport(report);
     setIsDrawerOpen(true);
   }, []);

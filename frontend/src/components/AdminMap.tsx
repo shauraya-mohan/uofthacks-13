@@ -20,17 +20,18 @@ function createPopupContent(report: Report): string {
     ? `<img src="${report.mediaUrl}" alt="Report" style="width:100%;height:120px;object-fit:cover;border-radius:4px;" />`
     : `<video src="${report.mediaUrl}" style="width:100%;height:120px;object-fit:cover;border-radius:4px;" muted autoplay loop playsinline></video>`;
 
-  const severityColor = SEVERITY_COLORS[report.analysis.severity];
-  const categoryLabel = CATEGORY_LABELS[report.analysis.category];
+  const severityColor = SEVERITY_COLORS[report.content.severity];
+  const categoryLabel = CATEGORY_LABELS[report.content.category];
 
   return `
     <div style="width:180px;font-family:system-ui,sans-serif;">
       ${mediaHtml}
       <div style="padding:8px 0 4px;">
-        <div style="font-weight:600;font-size:13px;color:#f5f5f5;margin-bottom:4px;">${categoryLabel}</div>
+        <div style="font-weight:600;font-size:13px;color:#f5f5f5;margin-bottom:4px;">${report.content.title}</div>
+        <div style="font-size:11px;color:#a3a3a3;margin-bottom:4px;">${categoryLabel}</div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="width:8px;height:8px;border-radius:50%;background:${severityColor};"></span>
-          <span style="font-size:12px;color:#a3a3a3;text-transform:capitalize;">${report.analysis.severity} severity</span>
+          <span style="font-size:12px;color:#a3a3a3;text-transform:capitalize;">${report.content.severity} severity</span>
         </div>
       </div>
     </div>
@@ -41,7 +42,7 @@ interface MarkerData {
   marker: mapboxgl.Marker;
   element: HTMLDivElement;
   reportId: string;
-  severity: Report['analysis']['severity'];
+  severity: Report['content']['severity'];
 }
 
 interface AdminMapProps {
@@ -283,7 +284,7 @@ export default function AdminMap({
       el.style.cssText = `
         width: ${MARKER_SIZE}px;
         height: ${MARKER_SIZE}px;
-        background-color: ${SEVERITY_COLORS[report.analysis.severity]};
+        background-color: ${SEVERITY_COLORS[report.content.severity]};
         border: 3px solid white;
         border-radius: 50%;
         cursor: pointer;
@@ -385,7 +386,7 @@ export default function AdminMap({
           marker,
           element: el,
           reportId: report.id,
-          severity: report.analysis.severity,
+          severity: report.content.severity,
         });
       }
     });

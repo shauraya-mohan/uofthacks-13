@@ -59,16 +59,30 @@ export interface DbReport {
     fileSize: number;
   };
 
-  ai: {
+  // AI-generated draft (preserved for analytics/ML improvement)
+  aiDraft: {
+    title: string;
+    description: string;
+    suggestedFix: string;
     category: string;
     severity: 'low' | 'medium' | 'high';
-    summary: string;
     confidence: number;
+    generatedAt: Date;
+  };
+
+  // User's final content (may be edited from AI draft)
+  content: {
+    title: string;
+    description: string;
+    suggestedFix: string;
+    category: string;
+    severity: 'low' | 'medium' | 'high';
+    isEdited: boolean;
   };
 
   geoMethod: 'auto' | 'manual';
 
-  status: 'open' | 'acknowledged' | 'resolved';
+  status: 'draft' | 'open' | 'acknowledged' | 'in_progress' | 'resolved';
 
   routing?: {
     assignedAreaId: string | null;

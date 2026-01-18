@@ -1,6 +1,5 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_core.prompts import ChatPromptTemplate
 from state import AgentState
 import os
 import json
@@ -33,20 +32,19 @@ You DO NOT execute the search. You INITIALIZE the search by defining:
 3. Strategy: Should we prioritize keyword matches or semantic meaning?
 
 Output your plan as a JSON object with these keys:
-- "semantic_query": The best natural language query to find this.
-- "filters": Dictionary with keys "severity", "category", "status" (or null if none)
-- "reasoning": A brief explanation of why you interpreted it this way.
+- semantic_query: The best natural language query to find this.
+- filters: Object with keys severity, category, status (or null if none)
+- reasoning: A brief explanation of why you interpreted it this way.
+
+IMPORTANT: Your response must be ONLY valid JSON, nothing else.
 """
     
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "{input}")
-    ])
-    
-    chain = prompt | llm
-    
     try:
-        response = chain.invoke({"input": last_message})
+        # Use direct invocation instead of ChatPromptTemplate to avoid escaping issues
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=last_message)
+        ])
         
         # Check if response has content
         if not response or not response.content:

@@ -116,7 +116,7 @@ async def build_index(reports: List[Dict[str, Any]], force_rebuild: bool = False
 async def search_similar(
     query: str,
     top_k: int = 20,
-    threshold: float = 0.5,
+    threshold: float = 0.3,
 ) -> List[Tuple[str, float]]:
     """
     Search for similar reports using vector similarity.

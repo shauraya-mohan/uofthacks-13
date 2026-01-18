@@ -252,32 +252,65 @@ export default function Map({
     };
   }, [onMapClick]);
 
-  // Create marker element with hover popup
+  // Create marker element with hover popup - Premium SVG pin with neon glow
   const createMarkerElement = useCallback(
     (report: Report) => {
       const el = document.createElement('div');
       el.className = 'report-marker';
       el.dataset.reportId = report.id;
+      const severityColor = SEVERITY_COLORS[report.content.severity];
       const outlineColor = STATUS_OUTLINE_COLORS[report.status] || STATUS_OUTLINE_COLORS.open;
+
+      // Create premium pin marker with neon glow
       el.style.cssText = `
         width: ${MARKER_SIZE}px;
-        height: ${MARKER_SIZE}px;
-        background-color: ${SEVERITY_COLORS[report.content.severity]};
-        border: 2px solid ${outlineColor};
-        border-radius: 50%;
+        height: ${MARKER_SIZE * 1.3}px;
         cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: width 0.15s ease-out, height 0.15s ease-out, margin 0.15s ease-out;
-        margin: 0;
+        transition: transform 0.2s ease-out, filter 0.2s ease-out;
+        filter: drop-shadow(0 0 6px ${severityColor}80) drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+        transform-origin: bottom center;
       `;
 
-      // Show popup on hover - use width/height instead of transform to avoid positioning issues
+      // Premium SVG pin icon with inner glow and gradient
+      el.innerHTML = `
+        <svg viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+          <defs>
+            <linearGradient id="pinGrad-${report.id}" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${severityColor}" />
+              <stop offset="50%" stop-color="${severityColor}" />
+              <stop offset="100%" stop-color="${adjustColor(severityColor, -30)}" />
+            </linearGradient>
+            <filter id="innerGlow-${report.id}" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+              <feOffset in="blur" dx="0" dy="1" result="offsetBlur"/>
+              <feFlood flood-color="white" flood-opacity="0.3" result="color"/>
+              <feComposite in="color" in2="offsetBlur" operator="in" result="shadow"/>
+              <feMerge>
+                <feMergeNode in="shadow"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <!-- Pin body with gradient -->
+          <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20c0-6.627-5.373-12-12-12z" 
+                fill="url(#pinGrad-${report.id})" 
+                stroke="${outlineColor}" 
+                stroke-width="1.5"
+                filter="url(#innerGlow-${report.id})"/>
+          <!-- Inner highlight -->
+          <ellipse cx="12" cy="10" rx="8" ry="7" fill="white" fill-opacity="0.15"/>
+          <!-- Center circle with glow -->
+          <circle cx="12" cy="11" r="5" fill="white" fill-opacity="0.95"/>
+          <circle cx="12" cy="11" r="3" fill="${severityColor}"/>
+          <!-- Shine effect -->
+          <ellipse cx="8" cy="7" rx="2" ry="1.5" fill="white" fill-opacity="0.4"/>
+        </svg>
+      `;
+
+      // Show popup on hover with scale animation
       el.addEventListener('mouseenter', () => {
-        // Adjust margin to keep marker centered when size changes
-        const sizeDiff = (MARKER_SIZE_HOVER - MARKER_SIZE) / 2;
-        el.style.width = `${MARKER_SIZE_HOVER}px`;
-        el.style.height = `${MARKER_SIZE_HOVER}px`;
-        el.style.margin = `-${sizeDiff}px`;
+        el.style.transform = 'scale(1.25)';
+        el.style.filter = `drop-shadow(0 0 12px ${severityColor}) drop-shadow(0 4px 8px rgba(0,0,0,0.5))`;
 
         if (!map.current) return;
 
@@ -289,7 +322,7 @@ export default function Map({
           hoverPopup.current = new mapboxgl.Popup({
             closeButton: false,
             closeOnClick: false,
-            offset: 20,
+            offset: 25,
             className: 'report-hover-popup',
           });
         }
@@ -302,9 +335,8 @@ export default function Map({
 
       // Hide popup on mouse leave
       el.addEventListener('mouseleave', () => {
-        el.style.width = `${MARKER_SIZE}px`;
-        el.style.height = `${MARKER_SIZE}px`;
-        el.style.margin = '0';
+        el.style.transform = 'scale(1)';
+        el.style.filter = `drop-shadow(0 0 6px ${severityColor}80) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`;
         hoverPopup.current?.remove();
       });
 
@@ -320,6 +352,15 @@ export default function Map({
     []
   );
 
+  // Helper function to darken/lighten colors for gradients
+  function adjustColor(hex: string, amount: number): string {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const r = Math.max(0, Math.min(255, (num >> 16) + amount));
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amount));
+    const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amount));
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+  }
+
   // Update marker styling when selection or report status changes
   useEffect(() => {
     markersData.current.forEach((data) => {
@@ -327,14 +368,14 @@ export default function Map({
       if (!report) return;
 
       const isSelected = data.reportId === selectedReportId;
-      const statusColor = STATUS_OUTLINE_COLORS[report.status] || STATUS_OUTLINE_COLORS.open;
-      const size = isSelected ? MARKER_SIZE_HOVER : MARKER_SIZE;
-      const sizeDiff = isSelected ? (MARKER_SIZE_HOVER - MARKER_SIZE) / 2 : 0;
+      const severityColor = SEVERITY_COLORS[report.content.severity];
 
-      data.element.style.width = `${size}px`;
-      data.element.style.height = `${size}px`;
-      data.element.style.margin = isSelected ? `-${sizeDiff}px` : '0';
-      data.element.style.borderColor = statusColor;
+      // Use transform for selection state - more performant and matches hover behavior
+      data.element.style.transform = isSelected ? 'scale(1.25)' : 'scale(1)';
+      data.element.style.filter = isSelected
+        ? `drop-shadow(0 0 12px ${severityColor}) drop-shadow(0 4px 8px rgba(0,0,0,0.5))`
+        : `drop-shadow(0 0 6px ${severityColor}80) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`;
+      data.element.style.zIndex = isSelected ? '10' : '1';
     });
   }, [selectedReportId, reports]);
 

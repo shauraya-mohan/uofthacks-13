@@ -1,10 +1,15 @@
 /**
  * POST /api/generate-fix
  * Generate a "fixed" version of an accessibility barrier image using AI
+ *
+ * Note: Images are resized client-side to ~1024px before sending to reduce payload size.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateFixedImage, isImageGenConfigured } from '@/lib/ai/imagen';
+
+// Allow longer execution time for image generation (Vercel serverless)
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {

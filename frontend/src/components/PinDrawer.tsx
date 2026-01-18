@@ -135,6 +135,43 @@ export default function PinDrawer({ report, isOpen, onClose, onDelete }: PinDraw
     setImageLoadError(false);
   }, [report?.id]);
 
+  // Resize image to reduce payload size for API calls
+  const resizeImageForApi = useCallback(async (imageUrl: string, maxWidth = 1024, maxHeight = 1024): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Calculate new dimensions maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        // Create canvas and draw resized image
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to JPEG for smaller size
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const base64 = dataUrl.split(',')[1];
+        resolve({ base64, mimeType: 'image/jpeg' });
+      };
+      img.onerror = () => reject(new Error('Failed to load image for resizing'));
+      img.src = imageUrl;
+    });
+  }, []);
+
   // Generate fixed image visualization
   const handleGenerateFix = useCallback(async () => {
     if (!displayReport || displayReport.mediaType !== 'image') return;
@@ -144,34 +181,39 @@ export default function PinDrawer({ report, isOpen, onClose, onDelete }: PinDraw
     setFixedImageUrl(null); // Clear previous result to show loading preview
 
     try {
-      // Extract base64 data from data URL or fetch from URL
-      let imageBase64 = '';
-      let mimeType = 'image/jpeg';
+      // Resize image to reduce payload size (prevents "Request Entity Too Large" errors)
+      let imageBase64: string;
+      let mimeType: string;
 
-      if (displayReport.mediaUrl.startsWith('data:')) {
-        const matches = displayReport.mediaUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (matches) {
-          mimeType = matches[1];
-          imageBase64 = matches[2];
+      try {
+        const resized = await resizeImageForApi(displayReport.mediaUrl);
+        imageBase64 = resized.base64;
+        mimeType = resized.mimeType;
+      } catch (resizeError) {
+        console.warn('Failed to resize image, trying original:', resizeError);
+        // Fallback to original approach if resizing fails
+        if (displayReport.mediaUrl.startsWith('data:')) {
+          const matches = displayReport.mediaUrl.match(/^data:([^;]+);base64,(.+)$/);
+          if (matches) {
+            mimeType = matches[1];
+            imageBase64 = matches[2];
+          } else {
+            throw new Error('Invalid data URL format');
+          }
+        } else {
+          const response = await fetch(displayReport.mediaUrl);
+          const blob = await response.blob();
+          mimeType = blob.type || 'image/jpeg';
+          imageBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
         }
-      } else {
-        // Fetch image and convert to base64
-        const response = await fetch(displayReport.mediaUrl);
-        const blob = await response.blob();
-        mimeType = blob.type || 'image/jpeg';
-
-        // Convert blob to base64 using FileReader (handles large files without stack overflow)
-        imageBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            // Remove the data URL prefix to get just the base64 data
-            const base64 = result.split(',')[1];
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
       }
 
       const apiResponse = await fetch('/api/generate-fix', {
@@ -189,8 +231,23 @@ export default function PinDrawer({ report, isOpen, onClose, onDelete }: PinDraw
       });
 
       if (!apiResponse.ok) {
-        const error = await apiResponse.json();
-        throw new Error(error.error || 'Failed to generate fix visualization');
+        // Handle non-JSON error responses (e.g., "Request Entity Too Large")
+        let errorMessage = 'Failed to generate fix visualization';
+        try {
+          const error = await apiResponse.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          // Response is not JSON, try to get text
+          const errorText = await apiResponse.text().catch(() => '');
+          if (apiResponse.status === 413 || errorText.includes('Request Entity Too Large')) {
+            errorMessage = 'Image is too large. Please try with a smaller image.';
+          } else if (apiResponse.status === 503) {
+            errorMessage = 'Image generation service is not configured.';
+          } else {
+            errorMessage = `Server error (${apiResponse.status}): ${errorText.slice(0, 100) || 'Unknown error'}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await apiResponse.json();
@@ -201,7 +258,7 @@ export default function PinDrawer({ report, isOpen, onClose, onDelete }: PinDraw
     } finally {
       setIsGenerating(false);
     }
-  }, [displayReport]);
+  }, [displayReport, resizeImageForApi]);
 
   if (!isOpen || !displayReport) return null;
 

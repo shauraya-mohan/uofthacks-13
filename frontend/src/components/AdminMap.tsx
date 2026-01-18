@@ -6,7 +6,7 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import type { Report, AdminArea } from '@/lib/types';
-import { SEVERITY_COLORS, CATEGORY_LABELS } from '@/lib/types';
+import { SEVERITY_COLORS, CATEGORY_LABELS, STATUS_OUTLINE_COLORS } from '@/lib/types';
 import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/geo';
 
 // Marker size constants
@@ -302,27 +302,22 @@ export default function AdminMap({
       const el = document.createElement('div');
       el.className = 'report-marker';
       el.dataset.reportId = report.id;
+      const outlineColor = STATUS_OUTLINE_COLORS[report.status] || STATUS_OUTLINE_COLORS.open;
       el.style.cssText = `
         width: ${MARKER_SIZE}px;
         height: ${MARKER_SIZE}px;
         background-color: ${SEVERITY_COLORS[report.content.severity]};
-        border: 3px solid white;
+        border: 2px solid ${outlineColor};
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: width 0.15s ease-out, height 0.15s ease-out, margin 0.15s ease-out, border-color 0.15s ease-out, opacity 0.15s ease-out;
+        transition: width 0.15s ease-out, height 0.15s ease-out, margin 0.15s ease-out, opacity 0.15s ease-out;
         margin: 0;
         opacity: 1;
       `;
 
-      // Show popup on hover - use width/height instead of transform to avoid positioning issues
+      // Show popup on hover (size is controlled by highlight effect, not hover)
       el.addEventListener('mouseenter', () => {
-        // Adjust margin to keep marker centered when size changes
-        const sizeDiff = (MARKER_SIZE_HOVER - MARKER_SIZE) / 2;
-        el.style.width = `${MARKER_SIZE_HOVER}px`;
-        el.style.height = `${MARKER_SIZE_HOVER}px`;
-        el.style.margin = `-${sizeDiff}px`;
-
         if (!map.current) return;
 
         // Find the current report data
@@ -346,9 +341,6 @@ export default function AdminMap({
 
       // Hide popup on mouse leave
       el.addEventListener('mouseleave', () => {
-        el.style.width = `${MARKER_SIZE}px`;
-        el.style.height = `${MARKER_SIZE}px`;
-        el.style.margin = '0';
         hoverPopup.current?.remove();
       });
 
@@ -364,22 +356,27 @@ export default function AdminMap({
     []
   );
 
-  // Update marker highlighting styles (without recreating markers)
+  // Update marker highlighting styles and status colors (without recreating markers)
   useEffect(() => {
     const highlightedSet = new Set(highlightedReportIds);
     const hasHighlights = highlightedReportIds.length > 0;
 
     markersData.current.forEach((data) => {
+      const report = reports.find((r) => r.id === data.reportId);
+      if (!report) return;
+
       const isHighlighted = highlightedSet.has(data.reportId);
       const size = isHighlighted ? MARKER_SIZE_HIGHLIGHT : MARKER_SIZE;
       const sizeDiff = isHighlighted ? (MARKER_SIZE_HIGHLIGHT - MARKER_SIZE) / 2 : 0;
+      const statusColor = STATUS_OUTLINE_COLORS[report.status] || STATUS_OUTLINE_COLORS.open;
+
       data.element.style.width = `${size}px`;
       data.element.style.height = `${size}px`;
       data.element.style.margin = isHighlighted ? `-${sizeDiff}px` : '0';
-      data.element.style.borderColor = isHighlighted ? '#1d4ed8' : 'white';
+      data.element.style.borderColor = statusColor;
       data.element.style.opacity = isHighlighted || !hasHighlights ? '1' : '0.4';
     });
-  }, [highlightedReportIds]);
+  }, [highlightedReportIds, reports]);
 
   // Add/remove markers when reports change (only after map is loaded)
   useEffect(() => {

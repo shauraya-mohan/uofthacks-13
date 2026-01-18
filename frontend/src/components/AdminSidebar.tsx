@@ -14,6 +14,7 @@ interface AdminSidebarProps {
   onAreaRename: (areaId: string, newName: string) => void;
   onAreaUpdateEmails: (areaId: string, emails: string[]) => Promise<void>;
   onUpdateReport: (reportId: string, updates: Partial<Report>) => Promise<void>;
+  onReportClick?: (report: Report) => void;
 }
 
 export default function AdminSidebar({
@@ -25,6 +26,7 @@ export default function AdminSidebar({
   onAreaRename,
   onAreaUpdateEmails,
   onUpdateReport,
+  onReportClick,
 }: AdminSidebarProps) {
   const [emailModalArea, setEmailModalArea] = useState<AdminArea | null>(null);
   const [emailInput, setEmailInput] = useState('');
@@ -108,8 +110,25 @@ export default function AdminSidebar({
     }
   };
 
+  // Calculate total costs per area
+  const areaCosts = useMemo(() => {
+    const costs = new Map<string, number>();
+    areas.forEach((area) => {
+      const areaReports = getReportsInArea(reports, area);
+      let total = 0;
+      areaReports.forEach((report) => {
+        const cost = report.aiDraft.estimatedCost;
+        if (cost) {
+          total += cost.amount * (cost.quantity || 1);
+        }
+      });
+      costs.set(area.id, total);
+    });
+    return costs;
+  }, [reports, areas]);
+
   return (
-    <div className="w-96 lg:w-[420px] bg-[#0a0a0a]/80 backdrop-blur-2xl border-l border-white/10 flex flex-col h-full shadow-2xl">
+    <div className="w-96 lg:w-[420px] bg-[#0a0a0a]/80 backdrop-blur-2xl border-r border-white/10 flex flex-col h-full shadow-2xl">
       {/* Stats - Minimal */}
       <div className="p-6 border-b border-white/5">
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Overview</h2>
@@ -207,12 +226,17 @@ export default function AdminSidebar({
                       </div>
                     </div>
 
-                    {/* Severity Badges - Minimal */}
+                    {/* Severity Badges & Cost - Minimal */}
                     {count > 0 && isSelected && (
-                      <div className="mt-4 flex gap-2 animate-fade-in">
+                      <div className="mt-4 flex items-center gap-2 flex-wrap animate-fade-in">
                         <SeverityBadge severity="high" reports={reports} area={area} />
                         <SeverityBadge severity="medium" reports={reports} area={area} />
                         <SeverityBadge severity="low" reports={reports} area={area} />
+                        {(areaCosts.get(area.id) || 0) > 0 && (
+                          <span className="text-xs text-emerald-400 font-mono font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                            ${(areaCosts.get(area.id) || 0).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} CAD
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -224,6 +248,7 @@ export default function AdminSidebar({
                         area={area}
                         reports={reports}
                         onUpdateReport={onUpdateReport}
+                        onReportClick={onReportClick}
                       />
                     </div>
                   )}
@@ -264,7 +289,7 @@ export default function AdminSidebar({
             {/* Modal Body */}
             <div className="p-6">
               <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-                Add email addresses to instantly notify stakeholders when critical accessibility issues are reported in this zone.
+                Add email addresses to instantly notify stakeholders.
               </p>
 
               {/* Add Email Input */}

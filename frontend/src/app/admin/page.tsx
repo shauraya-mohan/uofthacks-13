@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [aiSearchMatchIds, setAiSearchMatchIds] = useState<string[] | null>(null);
 
   const prevReportsRef = useRef<Report[]>([]);
+  const isInitialLoadRef = useRef(true);
 
   // Poll for new reports every 5 seconds when authenticated
   useEffect(() => {
@@ -47,6 +48,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!reportsLoaded || !areasLoaded || areas.length === 0) return;
+
+    // Skip notifications on initial page load
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      prevReportsRef.current = reports;
+      return;
+    }
 
     const prevIds = new Set(prevReportsRef.current.map((r) => r.id));
     const newReports = reports.filter((r) => !prevIds.has(r.id));
@@ -187,6 +195,21 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar - Left side */}
+        {isLoaded && (
+          <AdminSidebar
+            reports={reports}
+            areas={areas}
+            selectedAreaId={selectedAreaId}
+            onAreaSelect={setSelectedAreaId}
+            onAreaDelete={handleAreaDeleted}
+            onAreaRename={handleAreaRename}
+            onAreaUpdateEmails={handleAreaUpdateEmails}
+            onUpdateReport={handleUpdateReport}
+            onReportClick={handlePinClick}
+          />
+        )}
+
         {/* Map */}
         <main className="flex-1 relative">
           {isLoaded ? (
@@ -220,20 +243,6 @@ export default function AdminPage() {
             </div>
           )}
         </main>
-
-        {/* Sidebar */}
-        {isLoaded && (
-          <AdminSidebar
-            reports={reports}
-            areas={areas}
-            selectedAreaId={selectedAreaId}
-            onAreaSelect={setSelectedAreaId}
-            onAreaDelete={handleAreaDeleted}
-            onAreaRename={handleAreaRename}
-            onAreaUpdateEmails={handleAreaUpdateEmails}
-            onUpdateReport={handleUpdateReport}
-          />
-        )}
       </div>
 
       {/* Pin Detail Drawer */}

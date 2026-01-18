@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { Report, Coordinates } from '@/lib/types';
-import { SEVERITY_COLORS, CATEGORY_LABELS } from '@/lib/types';
+import { SEVERITY_COLORS, CATEGORY_LABELS, STATUS_OUTLINE_COLORS } from '@/lib/types';
 import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/geo';
 
 // Marker size constants
@@ -258,15 +258,16 @@ export default function Map({
       const el = document.createElement('div');
       el.className = 'report-marker';
       el.dataset.reportId = report.id;
+      const outlineColor = STATUS_OUTLINE_COLORS[report.status] || STATUS_OUTLINE_COLORS.open;
       el.style.cssText = `
         width: ${MARKER_SIZE}px;
         height: ${MARKER_SIZE}px;
         background-color: ${SEVERITY_COLORS[report.content.severity]};
-        border: 3px solid white;
+        border: 2px solid ${outlineColor};
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: width 0.15s ease-out, height 0.15s ease-out, margin 0.15s ease-out, border-color 0.15s ease-out;
+        transition: width 0.15s ease-out, height 0.15s ease-out, margin 0.15s ease-out;
         margin: 0;
       `;
 
@@ -319,13 +320,23 @@ export default function Map({
     []
   );
 
-  // Update marker selection styling (without recreating markers)
+  // Update marker styling when selection or report status changes
   useEffect(() => {
     markersData.current.forEach((data) => {
+      const report = reports.find((r) => r.id === data.reportId);
+      if (!report) return;
+
       const isSelected = data.reportId === selectedReportId;
-      data.element.style.borderColor = isSelected ? '#1d4ed8' : 'white';
+      const statusColor = STATUS_OUTLINE_COLORS[report.status] || STATUS_OUTLINE_COLORS.open;
+      const size = isSelected ? MARKER_SIZE_HOVER : MARKER_SIZE;
+      const sizeDiff = isSelected ? (MARKER_SIZE_HOVER - MARKER_SIZE) / 2 : 0;
+
+      data.element.style.width = `${size}px`;
+      data.element.style.height = `${size}px`;
+      data.element.style.margin = isSelected ? `-${sizeDiff}px` : '0';
+      data.element.style.borderColor = statusColor;
     });
-  }, [selectedReportId]);
+  }, [selectedReportId, reports]);
 
   // Add/remove markers when reports change (only after map is loaded)
   useEffect(() => {

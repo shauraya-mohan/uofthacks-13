@@ -94,6 +94,15 @@ export const SEVERITY_COLORS: Record<Severity, string> = {
   high: '#ef4444',   // red
 };
 
+// Status outline color mapping for map pins (darker variants)
+export const STATUS_OUTLINE_COLORS: Record<ReportStatus, string> = {
+  draft: '#4b5563',      // gray-600
+  open: '#1d4ed8',       // blue-700
+  acknowledged: '#b45309', // amber-700
+  in_progress: '#6d28d9',  // purple-700
+  resolved: '#15803d',     // green-700
+};
+
 // Category display names
 export const CATEGORY_LABELS: Record<Category, string> = {
   broken_sidewalk: 'Broken Sidewalk',

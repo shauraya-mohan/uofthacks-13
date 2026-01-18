@@ -171,24 +171,10 @@ export default function CommandPaletteSearch({ onSearchResults, totalReports }: 
             {result && !isOpen && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
                     <div className="flex items-center gap-3 px-5 py-3 bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] rounded-2xl shadow-2xl shadow-black/50">
-                        {/* Premium shiny diamond icon with neon glow */}
-                        <div className="relative flex items-center justify-center">
-                            {/* Outer glow layers */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-500 blur-lg opacity-60 animate-pulse" style={{ width: '24px', height: '24px', marginLeft: '-6px', marginTop: '-6px' }} />
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 blur-md opacity-40 animate-pulse" style={{ width: '20px', height: '20px', marginLeft: '-4px', marginTop: '-4px', animationDelay: '0.5s' }} />
-                            {/* Diamond shape with gradient */}
-                            <svg className="relative w-4 h-4 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" viewBox="0 0 24 24" fill="none">
-                                <defs>
-                                    <linearGradient id="diamondGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stopColor="#22d3ee" />
-                                        <stop offset="50%" stopColor="#3b82f6" />
-                                        <stop offset="100%" stopColor="#8b5cf6" />
-                                    </linearGradient>
-                                </defs>
-                                <path d="M12 2L2 9l10 13 10-13-10-7z" fill="url(#diamondGradient)" />
-                                <path d="M12 2L2 9h20L12 2z" fill="rgba(255,255,255,0.3)" />
-                                <path d="M6 9l6 13 6-13H6z" fill="rgba(0,0,0,0.1)" />
-                            </svg>
+                        {/* Subtle pulsing dot */}
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-40" />
+                            <div className="relative w-2.5 h-2.5 bg-blue-500 rounded-full" />
                         </div>
 
                         <span className="text-gray-200 font-medium">

@@ -2,11 +2,23 @@
 
 import { useState, useRef, useCallback } from 'react';
 import type { Coordinates, AnalyzeResponse, Report, Category, Severity, ReportContent } from '@/lib/types';
-import { CATEGORY_LABELS, SEVERITY_COLORS } from '@/lib/types';
+import { CATEGORY_LABELS } from '@/lib/types';
 import { getCurrentPosition } from '@/lib/geo';
 import Map from './Map';
+import {
+  uploadToCloudinary,
+  generateThumbnailUrl,
+  type CloudinarySignedParams,
+  type CloudinaryUploadResponse,
+} from '@/lib/cloudinary';
 
-type UploadStep = 'select' | 'converting' | 'location' | 'analyzing' | 'edit';
+type UploadStep = 'select' | 'converting' | 'location' | 'analyzing' | 'uploading' | 'edit';
+
+// Allowed image types
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
 const CATEGORIES: Category[] = [
   'broken_sidewalk',
@@ -72,6 +84,8 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [cloudinaryData, setCloudinaryData] = useState<CloudinaryUploadResponse | null>(null);
 
   // User-editable content (initialized from AI analysis)
   const [editedContent, setEditedContent] = useState<ReportContent>({
@@ -99,6 +113,8 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     setAnalysis(null);
     setError(null);
     setIsSubmitting(false);
+    setUploadProgress(0);
+    setCloudinaryData(null);
     setEditedContent({
       title: '',
       description: '',
@@ -123,13 +139,28 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
     const isImage = selectedFile.type.startsWith('image/') || isHeic;
     const isVideo = selectedFile.type.startsWith('video/');
 
+    // Validate file type
     if (!isImage && !isVideo) {
       setError('Please select an image or video file');
       return;
     }
 
-    if (selectedFile.size > 20 * 1024 * 1024) {
-      setError('File must be under 20MB');
+    // More specific type validation for images
+    if (isImage && !isHeic && !ALLOWED_IMAGE_TYPES.includes(selectedFile.type)) {
+      setError('Please select a JPEG, PNG, or WebP image');
+      return;
+    }
+
+    // More specific type validation for videos
+    if (isVideo && !ALLOWED_VIDEO_TYPES.includes(selectedFile.type)) {
+      setError('Please select an MP4 or WebM video');
+      return;
+    }
+
+    // Validate file size
+    const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+    if (selectedFile.size > maxSize) {
+      setError(`File must be under ${maxSize / (1024 * 1024)}MB`);
       return;
     }
 
@@ -245,42 +276,102 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
 
     setIsSubmitting(true);
     setError(null);
+    setUploadProgress(0);
+
+    const isImage = file.type.startsWith('image/');
 
     try {
-      // Upload file to server (Cloudinary or base64 fallback)
       let uploadedMediaUrl = mediaUrl;
-      try {
-        const uploadFormData = new FormData();
-        uploadFormData.append('file', file);
+      let thumbnailUrl: string | null = null;
+      let cloudinaryPublicId: string | null = null;
+      let imageWidth: number | null = null;
+      let imageHeight: number | null = null;
+      let imageBytes: number | null = null;
 
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: uploadFormData,
-        });
+      // Only use Cloudinary for images (videos still use server-side upload)
+      if (isImage) {
+        try {
+          setStep('uploading');
 
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          uploadedMediaUrl = uploadData.url;
-          if (uploadData.warning) {
-            console.warn(uploadData.warning);
+          // Step 1: Get signed upload params from our backend
+          const signatureResponse = await fetch('/api/cloudinary/signature');
+          if (!signatureResponse.ok) {
+            const errorData = await signatureResponse.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Failed to get upload signature');
           }
-        } else {
-          const errorData = await uploadResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Upload failed');
+          const signedParams: CloudinarySignedParams = await signatureResponse.json();
+
+          // Step 2: Upload directly to Cloudinary with progress tracking
+          const cloudinaryResponse = await uploadToCloudinary(
+            file,
+            signedParams,
+            (progress) => setUploadProgress(progress)
+          );
+
+          // Step 3: Extract Cloudinary data
+          uploadedMediaUrl = cloudinaryResponse.secure_url;
+          cloudinaryPublicId = cloudinaryResponse.public_id;
+          imageWidth = cloudinaryResponse.width;
+          imageHeight = cloudinaryResponse.height;
+          imageBytes = cloudinaryResponse.bytes;
+
+          // Step 4: Generate thumbnail URL using Cloudinary transformations
+          thumbnailUrl = generateThumbnailUrl(cloudinaryPublicId, signedParams.cloudName);
+
+          setCloudinaryData(cloudinaryResponse);
+          console.log('Cloudinary upload successful:', {
+            publicId: cloudinaryPublicId,
+            url: uploadedMediaUrl,
+            thumbnail: thumbnailUrl,
+          });
+        } catch (cloudinaryError) {
+          console.error('Cloudinary upload failed, falling back to server upload:', cloudinaryError);
+          // Fall back to server-side upload if Cloudinary fails
         }
-      } catch (uploadError) {
-        console.error('Failed to upload media:', uploadError);
-        setError('Failed to upload media. Please try again.');
-        setIsSubmitting(false);
-        return; // Don't continue without proper media URL
+      }
+
+      // Fallback: Use server-side upload if Cloudinary wasn't used or failed
+      if (uploadedMediaUrl === mediaUrl) {
+        try {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', file);
+
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: uploadFormData,
+          });
+
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            uploadedMediaUrl = uploadData.url;
+            if (uploadData.warning) {
+              console.warn(uploadData.warning);
+            }
+          } else {
+            const errorData = await uploadResponse.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Upload failed');
+          }
+        } catch (uploadError) {
+          console.error('Failed to upload media:', uploadError);
+          setError('Failed to upload media. Please try again.');
+          setIsSubmitting(false);
+          setStep('edit');
+          return;
+        }
       }
 
       const report: Omit<Report, 'id' | 'createdAt'> = {
         coordinates,
         mediaUrl: uploadedMediaUrl,
-        mediaType: file.type.startsWith('image/') ? 'image' : 'video',
+        mediaType: isImage ? 'image' : 'video',
         fileName: file.name,
         fileSize: file.size,
+        // New Cloudinary fields
+        thumbnailUrl,
+        cloudinaryPublicId,
+        imageWidth,
+        imageHeight,
+        imageBytes,
         aiDraft: {
           title: analysis.title,
           description: analysis.description,
@@ -303,6 +394,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
       console.error('Failed to submit report:', submitError);
       setError('Failed to submit report. Please try again.');
       setIsSubmitting(false);
+      setStep('edit');
     }
   };
 
@@ -326,8 +418,8 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
 
   if (!isOpen) return null;
 
-  // Full-screen map view for location and analyzing steps
-  const isMapStep = step === 'location' || step === 'analyzing';
+  // Full-screen map view for location, analyzing, and uploading steps
+  const isMapStep = step === 'location' || step === 'analyzing' || step === 'uploading';
 
   // Full-screen form for edit step
   const isFormStep = step === 'edit';
@@ -343,7 +435,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
             onCenterChange={handleCenterChange}
             initialCenter={coordinates}
             flyToPosition={flyToPosition}
-            disablePan={step === 'analyzing'}
+            disablePan={step === 'analyzing' || step === 'uploading'}
           />
         </div>
 
@@ -352,7 +444,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
           {/* Back button */}
           <button
             onClick={handleBackFromLocation}
-            disabled={step === 'analyzing'}
+            disabled={step === 'analyzing' || step === 'uploading'}
             className="w-10 h-10 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-full flex items-center justify-center shadow-lg hover:bg-[#262626] transition-colors disabled:opacity-50"
           >
             <svg className="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -459,6 +551,42 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
                       <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
                         AI is identifying the issue
                       </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* UPLOADING STEP */}
+              {step === 'uploading' && (
+                <div className="flex gap-3 sm:gap-4 items-center">
+                  {/* Thumbnail */}
+                  {mediaUrl && file && (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#262626] flex-shrink-0">
+                      {file.type.startsWith('image/') ? (
+                        <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <video src={mediaUrl} className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Upload progress */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="animate-spin w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full flex-shrink-0" />
+                      <div>
+                        <h3 className="text-gray-100 font-semibold text-sm sm:text-base">Uploading image...</h3>
+                        <p className="text-gray-500 text-xs sm:text-sm">
+                          {uploadProgress}% complete
+                        </p>
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="w-full h-2 bg-[#333] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 transition-all duration-300 ease-out"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
                     </div>
                   </div>
                 </div>

@@ -138,9 +138,20 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
         // Fetch image and convert to base64
         const response = await fetch(displayReport.mediaUrl);
         const blob = await response.blob();
-        mimeType = blob.type;
-        const buffer = await blob.arrayBuffer();
-        imageBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        mimeType = blob.type || 'image/jpeg';
+
+        // Convert blob to base64 using FileReader (handles large files without stack overflow)
+        imageBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            // Remove the data URL prefix to get just the base64 data
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
       }
 
       const apiResponse = await fetch('/api/generate-fix', {

@@ -21,12 +21,11 @@ Open http://localhost:3000 🎉
 
 ### Must Have (App works with mock fallback)
 - ✅ **Mapbox** - Already configured
-- ✅ **MongoDB** - Already configured  
-- ✅ **OpenAI** - Already configured
+- ✅ **MongoDB** - Already configured
+- ✅ **Gemini** - Already configured
 
 ### Should Have (for full functionality)
-- ⚠️ **TwelveLabs** - Get at https://twelvelabs.io/ (for video AI)
-- ⚠️ **Cloudinary** - Get at https://cloudinary.com/ (for media storage)
+- ⚠️ **Cloudinary** - Get at https://cloudinary.com/ (for fast image hosting)
 
 ### Nice to Have
 - ℹ️ **Amplitude** - Get at https://amplitude.com/ (for analytics)
@@ -55,7 +54,7 @@ Open http://localhost:3000 🎉
 ### Core Libraries
 ```
 lib/mongodb.ts        → Database connection
-lib/twelvelabs.ts     → Video analysis AI
+lib/cloudinary.ts     → Image upload utilities
 lib/analytics.ts      → Amplitude tracking
 lib/geo.ts            → Point-in-polygon, geolocation
 lib/types.ts          → TypeScript definitions
@@ -104,9 +103,9 @@ npm run dev
 - Check `NEXT_PUBLIC_MAPBOX_TOKEN` starts with `pk.`
 - Verify token is active on Mapbox dashboard
 
-### Videos not analyzing
-- Add `TWELVELABS_API_KEY` to `.env.local`
-- Videos will fall back to mock analysis without key
+### Images not uploading to Cloudinary
+- Add Cloudinary credentials to `.env.local`
+- App will fall back to server-side base64 without Cloudinary
 
 ---
 
@@ -177,19 +176,19 @@ npm run dev
 ## 🎯 Feature Status
 
 ### ✅ Complete
-- User report submission (image/video)
-- AI analysis (OpenAI + TwelveLabs)
+- User report submission (image)
+- AI analysis (Gemini)
 - Interactive 3D map
 - Admin area drawing
 - MongoDB persistence
-- Cloudinary media storage
+- Cloudinary media storage with CDN
+- Thumbnail generation
 - Report filtering by area
 - Real-time notifications
 - Status management
 
 ### ⚠️ Needs Configuration
-- TwelveLabs API key (for video)
-- Cloudinary credentials (for media)
+- Cloudinary credentials (for fast image hosting)
 - Amplitude API key (for analytics)
 
 ### 🚧 Could Add (If Time)
@@ -236,14 +235,13 @@ Done in 5 minutes! 🎉
 - Use real images of barriers if possible
 
 ### For Judges
-- Emphasize the AI (OpenAI + TwelveLabs)
+- Emphasize the AI (Gemini)
 - Show admin notification system
 - Demonstrate mobile + GPS
 - Highlight real-world impact
 
 ### Common Gotchas
-- Videos take 30s-5min to analyze (TwelveLabs indexing)
-- Base64 fallback works but not production-ready
+- Base64 fallback works but not production-ready (use Cloudinary)
 - Admin password defaults to "admin"
 - Map needs Mapbox token starting with `pk.`
 
@@ -259,7 +257,7 @@ npm run dev  # Watch console for errors
 **Common errors:**
 - `MONGODB_URI not defined` → Check .env.local
 - `Cloudinary upload failed` → Check credentials or use base64 fallback
-- `TwelveLabs error` → Check API key or use mock fallback
+- `Gemini error` → Check API key or use mock fallback
 - `Map not loading` → Check Mapbox token
 
 **Everything is logged to console with clear error messages!**

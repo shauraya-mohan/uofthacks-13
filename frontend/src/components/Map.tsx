@@ -13,8 +13,10 @@ const MARKER_SIZE_HOVER = 30;
 
 // Create popup HTML content for a report
 function createPopupContent(report: Report): string {
+  // Use thumbnailUrl for faster loading in popups, fallback to mediaUrl for backwards compatibility
+  const imageUrl = report.thumbnailUrl || report.mediaUrl;
   const mediaHtml = report.mediaType === 'image'
-    ? `<img src="${report.mediaUrl}" alt="Report" style="width:100%;height:120px;object-fit:cover;border-radius:4px;" />`
+    ? `<img src="${imageUrl}" alt="Report" style="width:100%;height:120px;object-fit:cover;border-radius:4px;" loading="lazy" />`
     : `<video src="${report.mediaUrl}" style="width:100%;height:120px;object-fit:cover;border-radius:4px;" muted autoplay loop playsinline></video>`;
 
   const severityColor = SEVERITY_COLORS[report.content.severity];
@@ -163,6 +165,25 @@ export default function Map({
       if (onCenterChangeRef.current) {
         const mapCenter = map.current!.getCenter();
         onCenterChangeRef.current({ lng: mapCenter.lng, lat: mapCenter.lat });
+      }
+
+      // Center on user's GPS location if no initialCenter provided
+      if (!initialCenter && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            if (map.current) {
+              map.current.flyTo({
+                center: [position.coords.longitude, position.coords.latitude],
+                zoom: 16,
+                duration: 1500,
+              });
+            }
+          },
+          (error) => {
+            console.log('Could not get GPS location:', error.message);
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
       }
     });
 

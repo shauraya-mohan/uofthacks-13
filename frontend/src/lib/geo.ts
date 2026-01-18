@@ -111,4 +111,4 @@ export const DEFAULT_CENTER: Coordinates = {
   lng: -79.3832,
 };
 
-export const DEFAULT_ZOOM = 13;
+export const DEFAULT_ZOOM = 15;

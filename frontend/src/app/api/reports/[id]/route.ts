@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase, DbReport } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { deleteFromCloudinary } from '@/lib/cloudinary';
+
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 
 // Helper to safely convert date to ISO string
 function toISOString(date: Date | string | undefined): string {
@@ -49,6 +54,11 @@ export async function GET(
       mediaType: report.media?.type ?? 'image',
       fileName: report.media?.fileName ?? '',
       fileSize: report.media?.fileSize ?? 0,
+      thumbnailUrl: report.media?.thumbnailUrl || null,
+      cloudinaryPublicId: report.media?.cloudinaryPublicId || null,
+      imageWidth: report.media?.imageWidth || null,
+      imageHeight: report.media?.imageHeight || null,
+      imageBytes: report.media?.imageBytes || null,
       aiDraft: {
         title: report.aiDraft?.title ?? '',
         description: report.aiDraft?.description ?? '',
@@ -97,6 +107,38 @@ export async function DELETE(
     }
 
     const db = await getDatabase();
+
+    // First, fetch the report to get cloudinaryPublicId for cleanup
+    const report = await db.collection<DbReport>('reports').findOne({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      _id: new ObjectId(id) as any,
+    });
+
+    if (!report) {
+      return NextResponse.json(
+        { error: 'Report not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete from Cloudinary if public_id exists
+    const publicId = report.media?.cloudinaryPublicId;
+    if (publicId && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET && CLOUDINARY_CLOUD_NAME) {
+      try {
+        await deleteFromCloudinary(
+          publicId,
+          CLOUDINARY_API_KEY,
+          CLOUDINARY_API_SECRET,
+          CLOUDINARY_CLOUD_NAME
+        );
+        console.log(`Deleted Cloudinary image: ${publicId}`);
+      } catch (cloudinaryError) {
+        // Log but don't fail the delete operation
+        console.error('Failed to delete from Cloudinary:', cloudinaryError);
+      }
+    }
+
+    // Delete from MongoDB
     const result = await db.collection('reports').deleteOne({
       _id: new ObjectId(id),
     });

@@ -16,9 +16,8 @@ npm install
 ### 2. Environment Variables
 Your `.env.local` file should already exist with these values:
 - ✅ Mapbox token configured
-- ✅ OpenAI API key configured  
+- ✅ Gemini API key configured
 - ✅ MongoDB URI configured
-- ⚠️ TwelveLabs API key needed (optional but recommended)
 - ⚠️ Cloudinary credentials needed (optional but recommended)
 
 ### 3. Initialize Database
@@ -49,16 +48,6 @@ Open http://localhost:3000 and:
 ---
 
 ## 🔑 GETTING API KEYS
-
-### TwelveLabs (Required for video analysis)
-1. Go to https://twelvelabs.io/
-2. Sign up for free account
-3. Go to Dashboard → API Keys
-4. Copy your API key
-5. Add to `.env.local`:
-   ```
-   TWELVELABS_API_KEY=tlk_your_api_key_here
-   ```
 
 ### Cloudinary (Recommended for media storage)
 1. Go to https://cloudinary.com/
@@ -104,8 +93,7 @@ Open http://localhost:3000 and:
 - [ ] Can delete areas
 
 ### AI Analysis
-- [ ] Images analyzed with OpenAI (or mock if no key)
-- [ ] Videos analyzed with TwelveLabs (or mock if no key)
+- [ ] Images analyzed with Gemini (or mock if no key)
 - [ ] Analysis results display correctly
 - [ ] Severity colors correct (red/yellow/green)
 
@@ -142,15 +130,6 @@ Open http://localhost:3000 and:
 2. Check API secret doesn't have extra spaces
 3. App will fall back to base64 if Cloudinary fails (check console)
 
-### "Video analysis not working"
-**Problem:** TwelveLabs API key missing or video processing failed
-
-**Solution:**
-1. Verify `TWELVELABS_API_KEY` in `.env.local`
-2. Check API key is valid (test on TwelveLabs dashboard)
-3. App will fall back to mock analysis if TwelveLabs fails
-4. Check console for detailed error messages
-
 ### Map not displaying
 **Problem:** Mapbox token invalid or missing
 
@@ -160,11 +139,10 @@ Open http://localhost:3000 and:
 3. Token must be public (starts with pk, not sk)
 
 ### Analysis taking too long
-**Problem:** Video analysis can take 1-5 minutes for TwelveLabs indexing
+**Problem:** AI analysis may take a few seconds
 
 **Expected behavior:**
-- Images: 1-2 seconds with OpenAI
-- Videos: 30 seconds - 5 minutes with TwelveLabs (first time)
+- Images: 1-2 seconds with Gemini
 - Fallback: <1 second mock analysis
 
 ---
@@ -200,8 +178,7 @@ git push -u origin main
    - `NEXT_PUBLIC_MAPBOX_TOKEN`
    - `NEXT_PUBLIC_ADMIN_PASSWORD`
    - `MONGODB_URI`
-   - `OPENAI_API_KEY`
-   - `TWELVELABS_API_KEY`
+   - `GEMINI_API_KEY`
    - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
    - `CLOUDINARY_API_KEY`
    - `CLOUDINARY_API_SECRET`
@@ -252,20 +229,18 @@ curl -X POST https://your-app.vercel.app/api/db/init
 
 ### Shopify (AI) ✅
 **Status:** Ready
-- OpenAI Vision for image analysis
-- TwelveLabs for video analysis
-- **Talking points:** 
+- Google Gemini for image analysis
+- **Talking points:**
   - AI categorizes barriers automatically
   - Severity detection
   - Natural language summaries
-  - Multi-modal analysis (images + videos)
+  - Cost estimation for repairs
 
-### TwelveLabs (Video) ✅
-**Status:** Ready (pending API key)
-- Video upload implemented
-- Video analysis integrated
-- Semantic search for accessibility barriers
-- **Next step:** Add TwelveLabs API key to enable
+### Cloudinary (Image Hosting) ✅
+**Status:** Ready
+- Direct client-side upload to CDN
+- Automatic thumbnail generation
+- Fast image loading in feed
 
 ---
 
@@ -293,9 +268,9 @@ curl -X POST https://your-app.vercel.app/api/db/init
 - Show notification system
 
 **4. Tech Highlights (30s)**
-"Built with Next.js, MongoDB, and integrates three key technologies:
-- **OpenAI Vision** for image analysis
-- **TwelveLabs** for video understanding
+"Built with Next.js, MongoDB, and integrates key technologies:
+- **Google Gemini** for AI image analysis
+- **Cloudinary** for image hosting and CDN
 - **Amplitude** for product analytics
 
 All deployed on Vercel with real-time mapping via Mapbox."
@@ -308,7 +283,6 @@ All deployed on Vercel with real-time mapping via Mapbox."
 - **Admin Panel:** http://localhost:3000/admin
 - **MongoDB Atlas:** https://cloud.mongodb.com/
 - **Cloudinary Dashboard:** https://cloudinary.com/console
-- **TwelveLabs Dashboard:** https://api.twelvelabs.io/
 - **Vercel Dashboard:** https://vercel.com/dashboard
 - **Project Analysis:** `/PROJECT_ANALYSIS.md`
 

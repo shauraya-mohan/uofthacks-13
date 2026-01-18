@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
       .find(filter)
       .project(projection)
       .sort({ createdAt: -1 })
+      .allowDiskUse()
       .limit(effectiveLimit);
 
     // Apply pagination if page is specified
@@ -117,6 +118,11 @@ export async function GET(request: NextRequest) {
             mediaType: report.media?.type ?? 'image',
             fileName: report.media?.fileName ?? '',
             fileSize: report.media?.fileSize ?? 0,
+            thumbnailUrl: report.media?.thumbnailUrl || null,
+            cloudinaryPublicId: report.media?.cloudinaryPublicId || null,
+            imageWidth: report.media?.imageWidth || null,
+            imageHeight: report.media?.imageHeight || null,
+            imageBytes: report.media?.imageBytes || null,
             aiDraft: {
               title: report.aiDraft?.title ?? title,
               description: report.aiDraft?.description ?? description,
@@ -179,6 +185,12 @@ export async function POST(request: NextRequest) {
       mediaType,
       fileName,
       fileSize,
+      // New Cloudinary fields (nullable)
+      thumbnailUrl,
+      cloudinaryPublicId,
+      imageWidth,
+      imageHeight,
+      imageBytes,
       aiDraft,  // AI-generated content
       content,  // User's final content (may be edited)
       geoMethod
@@ -235,6 +247,12 @@ export async function POST(request: NextRequest) {
         url: mediaUrl,
         fileName,
         fileSize,
+        // New Cloudinary fields (nullable for backwards compatibility)
+        thumbnailUrl: thumbnailUrl || null,
+        cloudinaryPublicId: cloudinaryPublicId || null,
+        imageWidth: imageWidth || null,
+        imageHeight: imageHeight || null,
+        imageBytes: imageBytes || null,
       },
       aiDraft: {
         title: aiDraft.title,
@@ -290,6 +308,11 @@ export async function POST(request: NextRequest) {
       mediaType: report.media.type,
       fileName: report.media.fileName,
       fileSize: report.media.fileSize,
+      thumbnailUrl: report.media.thumbnailUrl || null,
+      cloudinaryPublicId: report.media.cloudinaryPublicId || null,
+      imageWidth: report.media.imageWidth || null,
+      imageHeight: report.media.imageHeight || null,
+      imageBytes: report.media.imageBytes || null,
       aiDraft: {
         title: report.aiDraft.title,
         description: report.aiDraft.description,

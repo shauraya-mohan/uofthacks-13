@@ -40,7 +40,7 @@ A web app for reporting and mapping accessibility barriers. Users upload photos/
 - Click pins to see details in a drawer
 - Report barriers with photo/video upload
 - Auto geolocation (falls back to manual map click)
-- AI-powered analysis (mock mode or real OpenAI)
+- AI-powered analysis (mock mode or real Gemini)
 
 ### Admin Panel (`/admin`)
 - Password-protected access
@@ -54,16 +54,72 @@ A web app for reporting and mapping accessibility barriers. Users upload photos/
 ```bash
 # Required
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.xxx        # Mapbox public token
+MONGODB_URI=mongodb+srv://...          # MongoDB Atlas connection string
+
+# Cloudinary (recommended for image hosting)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=xxx  # Your Cloudinary cloud name
+CLOUDINARY_API_KEY=xxx                 # Cloudinary API key
+CLOUDINARY_API_SECRET=xxx              # Cloudinary API secret
 
 # Optional
 NEXT_PUBLIC_ADMIN_PASSWORD=admin       # Admin panel password
-OPENAI_API_KEY=sk-xxx                  # Real AI analysis (images only)
-TWELVELABS_API_KEY=xxx                 # Future: video analysis
+GEMINI_API_KEY=xxx                     # Google Gemini for AI analysis
+CLOUDINARY_FOLDER=mobilitycursor       # Upload folder (default: mobilitycursor)
 ```
+
+## Cloudinary Setup (Image Hosting)
+
+MobilityCursor uses Cloudinary for fast image hosting with CDN delivery. This replaces storing large images directly in MongoDB.
+
+### How to Set Up
+
+1. **Create a Cloudinary Account**
+   - Go to [cloudinary.com](https://cloudinary.com/) and sign up (free tier available)
+   - The free tier includes 25 GB storage and 25 GB bandwidth/month
+
+2. **Get Your Credentials**
+   - Go to Dashboard > Settings > API Keys
+   - Copy your:
+     - **Cloud Name** (appears at the top of the dashboard)
+     - **API Key**
+     - **API Secret** (click "Reveal" to see it)
+
+3. **Add to Environment Variables**
+   ```bash
+   NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
+   ```
+
+### How the Upload Flow Works
+
+1. **User selects an image** in the upload modal
+2. **Client requests a signed upload** from `/api/cloudinary/signature`
+3. **Client uploads directly to Cloudinary** (reduces server load)
+4. **Cloudinary returns** `secure_url`, `public_id`, dimensions, and file size
+5. **Client generates thumbnail URL** using Cloudinary transformations
+6. **Report is saved to MongoDB** with only URLs and metadata (no raw image data)
+
+### Thumbnail Strategy
+
+- **Thumbnail** (400px width): Used in map popups for fast feed loading
+- **Full image** (original): Used in detail view when user clicks on a report
+
+Cloudinary transformations are applied via URL:
+```
+https://res.cloudinary.com/{cloud}/image/upload/w_400,q_auto,f_auto/{public_id}
+```
+
+### Backwards Compatibility
+
+- Existing reports without Cloudinary URLs continue to work
+- Old base64/data URLs are still supported for display
+- New uploads use Cloudinary automatically when configured
+- If Cloudinary is not configured, falls back to server-side upload
 
 ## Mock Mode
 
-If `OPENAI_API_KEY` is not set, the app uses **deterministic mock analysis**:
+If `GEMINI_API_KEY` is not set, the app uses **deterministic mock analysis**:
 - Category, severity, and summary are derived from file metadata (name, type, size)
 - Same file always produces the same result
 - Demo works without any AI API keys
@@ -74,7 +130,7 @@ If `OPENAI_API_KEY` is not set, the app uses **deterministic mock analysis**:
 - **Map**: Mapbox GL JS + Mapbox Draw
 - **Styling**: Tailwind CSS
 - **Storage**: localStorage (no database needed)
-- **AI**: OpenAI GPT-4o Vision (optional)
+- **AI**: Google Gemini (optional)
 
 ## Project Structure
 

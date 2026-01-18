@@ -35,7 +35,6 @@ export default function KanbanBoard({
   selectedAreaId,
   onUpdateReport,
 }: KanbanBoardProps) {
-  const [statusFilter, setStatusFilter] = useState<ReportStatus | 'all'>('all');
   const [draggedReport, setDraggedReport] = useState<Report | null>(null);
   const [editingCost, setEditingCost] = useState<EditingCost | null>(null);
 
@@ -51,13 +50,8 @@ export default function KanbanBoard({
       }
     }
 
-    // Filter by status if not 'all'
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((r) => r.status === statusFilter);
-    }
-
     return filtered;
-  }, [reports, areas, selectedAreaId, statusFilter]);
+  }, [reports, areas, selectedAreaId]);
 
   // Group reports by status
   const reportsByStatus = useMemo(() => {
@@ -209,46 +203,13 @@ export default function KanbanBoard({
           </div>
         </div>
 
-        {/* Filter Bar */}
-        <div className="px-6 py-3 border-b border-[#333] bg-[#141414] flex items-center gap-4">
-          <span className="text-sm text-gray-500">Filter by status:</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#262626] text-gray-400 hover:bg-[#333]'
-              }`}
-            >
-              All ({filteredReports.length})
-            </button>
-            {STATUS_COLUMNS.map(({ status, label, color }) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === status
-                    ? 'text-white'
-                    : 'bg-[#262626] text-gray-400 hover:bg-[#333]'
-                }`}
-                style={statusFilter === status ? { backgroundColor: color } : {}}
-              >
-                {label} ({reportsByStatus[status].length})
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Kanban Columns */}
         <div className="flex-1 overflow-x-auto p-6">
           <div className="flex gap-4 h-full min-w-max">
             {STATUS_COLUMNS.map(({ status, label, color }) => (
               <div
                 key={status}
-                className={`flex-shrink-0 w-80 bg-[#1a1a1a] rounded-xl border border-[#333] flex flex-col ${
-                  statusFilter !== 'all' && statusFilter !== status ? 'opacity-40' : ''
-                }`}
+                className="flex-shrink-0 w-80 bg-[#1a1a1a] rounded-xl border border-[#333] flex flex-col"
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(status)}
               >

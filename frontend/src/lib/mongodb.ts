@@ -64,6 +64,12 @@ export interface DbReport {
     url: string;
     fileName: string;
     fileSize: number;
+    // New Cloudinary fields (nullable for backwards compatibility)
+    thumbnailUrl?: string | null;
+    cloudinaryPublicId?: string | null;
+    imageWidth?: number | null;
+    imageHeight?: number | null;
+    imageBytes?: number | null;
   };
 
   // AI-generated draft (preserved for analytics/ML improvement)

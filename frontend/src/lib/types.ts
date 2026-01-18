@@ -66,6 +66,12 @@ export interface Report {
   mediaType: 'image' | 'video';
   fileName: string;
   fileSize: number;
+  // New Cloudinary fields (nullable for backwards compatibility)
+  thumbnailUrl?: string | null;
+  cloudinaryPublicId?: string | null;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
+  imageBytes?: number | null;
   aiDraft: AiDraft;
   content: ReportContent;
   geoMethod: 'auto' | 'manual';

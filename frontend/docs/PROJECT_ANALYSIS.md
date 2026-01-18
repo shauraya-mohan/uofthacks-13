@@ -20,7 +20,7 @@
 - **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS
 - **Map:** Mapbox GL JS + Mapbox Draw
 - **Database:** MongoDB with geospatial indexes
-- **AI:** OpenAI GPT-4o Vision (images), TwelveLabs (videos - not implemented)
+- **AI:** Google Gemini (images)
 - **Analytics:** Amplitude Browser SDK
 - **Storage:** Currently localStorage + base64 (needs upgrade)
 
@@ -43,7 +43,7 @@
 - ✅ Real-time area notifications
 
 ### Backend API (60% Complete)
-- ✅ `/api/analyze` - AI analysis endpoint (OpenAI + mock fallback)
+- ✅ `/api/analyze` - AI analysis endpoint (Gemini + mock fallback)
 - ✅ `/api/reports` - GET (list reports), POST (create report)
 - ✅ `/api/areas` - GET (list areas), POST (create area)
 - ✅ `/api/areas/[id]` - DELETE (delete area)
@@ -69,7 +69,7 @@
 - ❌ No `.env.local` file (needs to be created)
 - ❌ MongoDB URI not configured
 - ❌ Mapbox token not set up
-- ❌ Missing optional API keys (OpenAI, Amplitude, TwelveLabs)
+- ❌ Missing optional API keys (Gemini, Amplitude)
 
 #### 2. **Media File Storage**
 - ❌ Currently using base64 in localStorage (NOT production-ready)
@@ -89,9 +89,7 @@
 - ❌ `PATCH /api/reports/[id]` (for updating report status)
 
 #### 5. **Video Analysis**
-- ❌ TwelveLabs integration not implemented
-- ❌ Only images analyzed with OpenAI
-- ❌ Videos accepted but not actually analyzed
+- ❌ Videos not currently analyzed (images only with Gemini)
 
 #### 6. **FastAPI Backend**
 - ❌ Not implemented (mentioned in requirements but not present)
@@ -196,15 +194,7 @@
    - Add API call in useAreas hook
    - Wire up PATCH endpoint
 
-### Phase 3: Video Analysis (4-5 hours)
-7. **Integrate TwelveLabs**
-   - Sign up for TwelveLabs API
-   - Create video upload function
-   - Implement video analysis endpoint
-   - Extract frames and analyze accessibility issues
-   - Update analyze endpoint to handle videos
-
-### Phase 4: Polish & Testing (3-4 hours)
+### Phase 3: Polish & Testing (3-4 hours)
 8. **UI/UX Improvements**
    - Add loading states
    - Improve error messages
@@ -253,17 +243,11 @@
 - User journey instrumented
 - Ready for analysis
 
-### Shopify (AI) ⚠️
-**Status:** Partially Implemented
-- OpenAI vision working for images
-- Need to add video AI (TwelveLabs)
-- Can emphasize AI categorization and severity detection
-
-### TwelveLabs (Video) ❌
-**Status:** Not Implemented
-- This is the CRITICAL missing piece for sponsor track
-- Must implement for full credit
-- Priority: HIGH
+### Shopify (AI) ✅
+**Status:** Implemented
+- Google Gemini working for image analysis
+- AI categorization and severity detection
+- Cost estimation for repairs
 
 ---
 
@@ -271,12 +255,11 @@
 
 Given <20 hours remaining, here's what to prioritize:
 
-### Must Have (12 hours)
+### Must Have (8 hours)
 1. Environment setup + MongoDB (2h)
 2. Media storage with Cloudinary (2h)
-3. TwelveLabs video integration (4h)
-4. Missing API endpoints (2h)
-5. Testing & bug fixes (2h)
+3. Missing API endpoints (2h)
+4. Testing & bug fixes (2h)
 
 ### Should Have (4 hours)
 6. Admin status management (2h)
@@ -296,19 +279,16 @@ Given <20 hours remaining, here's what to prioritize:
 3. **NEXT:** Test that app runs and can connect to MongoDB
 4. **NEXT:** Decide on media storage (Cloudinary vs S3 vs other)
 5. **NEXT:** Implement file upload endpoint
-6. **THEN:** Integrate TwelveLabs for video analysis
-7. **THEN:** Complete missing API endpoints
-8. **FINALLY:** Test, polish, deploy
+6. **THEN:** Complete missing API endpoints
+7. **FINALLY:** Test, polish, deploy
 
 ---
 
 ## 📝 NOTES
 
-- **Current state:** Frontend is solid, backend needs completion
-- **Biggest gap:** Video analysis (required for TwelveLabs sponsor track)
+- **Current state:** Frontend is solid, backend mostly complete
 - **Quick wins:** Environment setup, API endpoints, media storage
-- **Time intensive:** TwelveLabs integration
-- **Risk areas:** Video processing, deployment, testing
+- **Risk areas:** Deployment, testing
 
-**Recommendation:** Focus on getting TwelveLabs working ASAP since it's a sponsor requirement and the most complex piece. Everything else is straightforward CRUD and configuration.
+**Recommendation:** Focus on testing the full user flow and deploying to production.
 

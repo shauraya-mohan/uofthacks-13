@@ -11,6 +11,7 @@ import AdminSidebar from '@/components/AdminSidebar';
 import PinDrawer from '@/components/PinDrawer';
 import KanbanBoard from '@/components/KanbanBoard';
 import Toast, { useToast } from '@/components/Toast';
+import CommandPaletteSearch from '@/components/CommandPaletteSearch';
 
 const AdminMap = dynamic(() => import('@/components/AdminMap'), {
   ssr: false,
@@ -31,6 +32,7 @@ export default function AdminPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isKanbanOpen, setIsKanbanOpen] = useState(false);
+  const [aiSearchMatchIds, setAiSearchMatchIds] = useState<string[] | null>(null);
 
   const prevReportsRef = useRef<Report[]>([]);
 
@@ -65,12 +67,18 @@ export default function AdminPage() {
     prevReportsRef.current = reports;
   }, [reports, areas, reportsLoaded, areasLoaded, addToast]);
 
+  // Combine area-based and AI search-based highlighting
   const highlightedReportIds = useMemo(() => {
+    // AI search results take priority if active
+    if (aiSearchMatchIds !== null) {
+      return aiSearchMatchIds;
+    }
+    // Otherwise, highlight reports in selected area
     if (!selectedAreaId) return [];
     const selectedArea = areas.find((a) => a.id === selectedAreaId);
     if (!selectedArea) return [];
     return getReportsInArea(reports, selectedArea).map((r) => r.id);
-  }, [selectedAreaId, areas, reports]);
+  }, [selectedAreaId, areas, reports, aiSearchMatchIds]);
 
   const handleAreaCreated = useCallback(
     async (geometry: GeoJSON.Polygon) => {
@@ -222,6 +230,14 @@ export default function AdminPage() {
 
       {/* Toast Notifications */}
       <Toast toasts={toasts} onDismiss={dismissToast} />
+
+      {/* AI Command Palette Search */}
+      {isLoaded && (
+        <CommandPaletteSearch
+          onSearchResults={setAiSearchMatchIds}
+          totalReports={reports.length}
+        />
+      )}
     </div>
   );
 }

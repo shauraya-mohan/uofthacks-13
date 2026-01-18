@@ -195,7 +195,7 @@ export default function AdminPage() {
 
         <div className="flex items-center gap-3">
           <a
-            href="/"
+            href="/map"
             className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-lg border border-white/5"
           >
             Exit to Map

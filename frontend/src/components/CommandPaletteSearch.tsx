@@ -134,25 +134,35 @@ export default function CommandPaletteSearch({ onSearchResults, totalReports }: 
     return (
         <>
             {/* Floating Trigger Button - Bottom Center */}
+            {/* Floating Trigger Button - Bottom Center - Minimal Glow Box */}
             {!isOpen && !result && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
                     <button
                         onClick={() => setIsOpen(true)}
-                        className="group flex items-center gap-3 px-5 py-3 bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] rounded-2xl shadow-2xl shadow-black/50 hover:border-blue-500/50 hover:shadow-blue-500/20 transition-all duration-300"
+                        className="group relative w-full flex items-center gap-4 px-6 py-4 bg-[#0a0a0a]/80 backdrop-blur-xl border border-blue-500/30 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.15)] hover:shadow-[0_0_50px_rgba(59,130,246,0.3)] hover:border-blue-500/50 transition-all duration-500 hover:scale-[1.02]"
                     >
-                        {/* Animated gradient orb */}
-                        <div className="relative w-8 h-8">
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse opacity-80" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                        {/* Glowing cursor icon */}
+                        <div className="flex-shrink-0 relative">
+                            <div className="absolute inset-0 bg-blue-500 blur-md opacity-40 animate-pulse" />
+                            <svg className="relative w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+
+                        {/* Typewriter text effect */}
+                        <div className="flex-1 text-left overflow-hidden">
+                            <div className="typewriter-text text-gray-400 font-light text-base tracking-wide flex items-center gap-1">
+                                <span>Describe an issue...</span>
+                                <span className="w-0.5 h-5 bg-blue-500 animate-blink" />
                             </div>
                         </div>
-                        <span className="text-gray-300 font-medium">AI Search</span>
-                        <kbd className="hidden sm:inline-flex px-2 py-1 bg-[#262626] border border-[#404040] rounded text-xs text-gray-500 font-mono">
-                            ⌘K
-                        </kbd>
+
+                        <div className="flex items-center gap-2 text-xs text-gray-500 font-medium border-l border-white/10 pl-4">
+                            <span>AI Powered</span>
+                            <kbd className="hidden sm:inline-flex px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-gray-400">
+                                ⌘K
+                            </kbd>
+                        </div>
                     </button>
                 </div>
             )}
@@ -204,7 +214,7 @@ export default function CommandPaletteSearch({ onSearchResults, totalReports }: 
 
                     {/* Command Palette */}
                     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-                        <div className="bg-[#1a1a1a]/98 backdrop-blur-xl border border-[#333] rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
+                        <div className="bg-[#0a0a0a]/90 backdrop-blur-2xl border border-blue-500/20 rounded-3xl shadow-[0_0_50px_rgba(59,130,246,0.15)] overflow-hidden">
                             {/* Search Input */}
                             <div className="relative">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -331,39 +341,46 @@ export default function CommandPaletteSearch({ onSearchResults, totalReports }: 
 
             {/* CSS for pulse animation on map markers (inject global styles) */}
             <style jsx global>{`
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        
+        .animate-blink {
+          animation: blink 1s step-end infinite;
+        }
+
         @keyframes pulse-glow {
           0%, 100% {
-            filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
+            filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
             transform: scale(1);
           }
           50% {
-            filter: drop-shadow(0 0 20px rgba(59, 130, 246, 1));
-            transform: scale(1.15);
+            filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.8));
+            transform: scale(1.02);
           }
-        }
-        
-        .search-highlight {
-          animation: pulse-glow 1.5s ease-in-out infinite;
         }
         
         @keyframes ripple {
           0% {
             transform: scale(1);
             opacity: 1;
+            border-width: 1px;
           }
           100% {
-            transform: scale(3);
+            transform: scale(1.5);
             opacity: 0;
+            border-width: 0px;
           }
         }
         
         .search-ripple::after {
           content: '';
           position: absolute;
-          inset: -10px;
-          border: 2px solid rgba(59, 130, 246, 0.6);
-          border-radius: 50%;
-          animation: ripple 2s ease-out infinite;
+          inset: -4px;
+          border: 1px solid rgba(59, 130, 246, 0.4);
+          border-radius: 9999px;
+          animation: ripple 2s cubic-bezier(0, 0, 0.2, 1) infinite;
         }
       `}</style>
         </>

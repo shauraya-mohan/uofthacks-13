@@ -216,26 +216,26 @@ export default function PinDrawer({ report, isOpen, onClose, onDelete }: PinDraw
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1a1a1a] border-l border-[#333] shadow-2xl z-50 flex flex-col animate-slide-in-right">
+      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1a1a1a]/95 backdrop-blur-xl border-l border-white/10 shadow-2xl z-50 flex flex-col animate-slide-in-right">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between">
+        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/5">
           <div>
-            <h2 className="text-lg font-semibold text-gray-100">{displayReport.content.title}</h2>
-            <div className="flex items-center gap-2 mt-1">
+            <h2 className="text-xl font-bold text-gray-100">{displayReport.content.title}</h2>
+            <div className="flex items-center gap-2 mt-1.5">
               <span
-                className="px-2 py-0.5 rounded text-xs font-medium"
-                style={{ backgroundColor: statusInfo.color + '20', color: statusInfo.color }}
+                className="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide border border-current"
+                style={{ backgroundColor: statusInfo.color + '15', color: statusInfo.color, borderColor: statusInfo.color + '30' }}
               >
                 {statusInfo.label}
               </span>
               {displayReport.content.isEdited && (
-                <span className="text-xs text-gray-500">Edited</span>
+                <span className="text-xs text-gray-400 italic">Edited</span>
               )}
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-300 transition-colors"
+            className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -69,16 +69,20 @@ export default function MainApp() {
                 )}
 
                 {/* Floating controls - top left */}
-                <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                <div className="absolute top-4 left-4 z-20 flex items-center gap-3">
                     <a
                         href="/admin"
-                        className="px-4 py-2.5 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] text-gray-200 rounded-xl font-medium hover:bg-[#262626] transition-colors shadow-lg text-sm"
+                        className="px-5 py-3 bg-[#1a1a1a]/80 backdrop-blur-md border border-white/10 text-gray-200 rounded-2xl font-medium hover:bg-[#262626]/90 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 text-sm flex items-center gap-2 group"
                     >
+                        <svg className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
                         Admin
                     </a>
                     <button
                         onClick={handleReportButtonClick}
-                        className="px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-500 transition-colors shadow-lg flex items-center gap-2 text-sm"
+                        className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-2xl font-medium hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-105 flex items-center gap-2 text-sm"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -88,26 +92,28 @@ export default function MainApp() {
                 </div>
 
                 {/* Legend */}
-                <div className="absolute bottom-4 left-4 bg-[#1a1a1a]/90 backdrop-blur border border-[#333] rounded-xl shadow-xl p-3 z-10">
-                    <p className="text-xs font-medium text-gray-400 mb-2">Severity</p>
-                    <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-red-500" />
-                            <span className="text-sm text-gray-300">High</span>
+                <div className="absolute bottom-6 left-6 bg-[#1a1a1a]/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-4 z-10 min-w-[160px]">
+                    <p className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">Severity Levels</p>
+                    <div className="flex flex-col gap-2.5">
+                        <div className="flex items-center gap-3 group">
+                            <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] group-hover:scale-110 transition-transform" />
+                            <span className="text-sm text-gray-200 font-medium">High</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-yellow-500" />
-                            <span className="text-sm text-gray-300">Medium</span>
+                        <div className="flex items-center gap-3 group">
+                            <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)] group-hover:scale-110 transition-transform" />
+                            <span className="text-sm text-gray-200 font-medium">Medium</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-green-500" />
-                            <span className="text-sm text-gray-300">Low</span>
+                        <div className="flex items-center gap-3 group">
+                            <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] group-hover:scale-110 transition-transform" />
+                            <span className="text-sm text-gray-200 font-medium">Low</span>
                         </div>
                     </div>
                     {reports.length > 0 && (
-                        <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-[#333]">
-                            {reports.length} report{reports.length !== 1 ? 's' : ''} total
-                        </p>
+                        <div className="mt-3 pt-3 border-t border-white/10">
+                            <p className="text-xs text-gray-400 font-medium">
+                                <span className="text-blue-400 font-bold">{reports.length}</span> active reports
+                            </p>
+                        </div>
                     )}
                 </div>
             </main>

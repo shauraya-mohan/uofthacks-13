@@ -160,27 +160,27 @@ export default function AdminPage() {
   const isLoaded = reportsLoaded && areasLoaded;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0f0f0f]">
+    <div className="h-screen w-screen flex flex-col bg-[#0f0f0f] text-gray-100">
       {/* Header */}
-      <header className="bg-[#1a1a1a] border-b border-[#333] px-4 py-3 flex items-center justify-between z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+      <header className="bg-[#1a1a1a]/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between z-20 sticky top-0">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-100">Admin Dashboard</h1>
-            <p className="text-sm text-gray-500">Manage responsibility areas</p>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">Admin Dashboard</h1>
+            <p className="text-sm text-gray-500 font-medium">Manage responsibility areas</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <a
             href="/"
-            className="px-4 py-2 text-gray-400 hover:text-gray-200 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-lg border border-white/5"
           >
-            Back to Map
+            Exit to Map
           </a>
         </div>
       </header>
@@ -207,10 +207,15 @@ export default function AdminPage() {
 
           {/* Instructions overlay */}
           {isLoaded && areas.length === 0 && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl px-6 py-4 z-10 text-center">
-              <p className="text-gray-200 font-medium">Draw your first responsibility area</p>
-              <p className="text-gray-500 text-sm mt-1">
-                Use the polygon tool (top-left) to define areas on the map
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#1a1a1a]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl px-8 py-5 z-10 text-center max-w-md">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </div>
+              <p className="text-white font-semibold text-lg">Create a Responsibility Area</p>
+              <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+                Use the polygon tool in the top-left corner to draw boundaries for areas you want to monitor.
               </p>
             </div>
           )}

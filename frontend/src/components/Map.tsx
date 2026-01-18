@@ -23,14 +23,14 @@ function createPopupContent(report: Report): string {
   const categoryLabel = CATEGORY_LABELS[report.content.category];
 
   return `
-    <div style="width:180px;font-family:system-ui,sans-serif;">
+    <div style="width:200px;font-family:system-ui,sans-serif;">
       ${mediaHtml}
-      <div style="padding:8px 0 4px;">
-        <div style="font-weight:600;font-size:13px;color:#f5f5f5;margin-bottom:4px;">${report.content.title}</div>
-        <div style="font-size:11px;color:#a3a3a3;margin-bottom:4px;">${categoryLabel}</div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="width:8px;height:8px;border-radius:50%;background:${severityColor};"></span>
-          <span style="font-size:12px;color:#a3a3a3;text-transform:capitalize;">${report.content.severity} severity</span>
+      <div style="padding:12px 4px 8px;">
+        <div style="font-weight:600;font-size:14px;color:#f5f5f5;margin-bottom:6px;line-height:1.3;">${report.content.title}</div>
+        <div style="font-size:11px;color:#a3a3a3;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">${categoryLabel}</div>
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);padding:6px 8px;border-radius:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${severityColor};box-shadow:0 0 8px ${severityColor};"></span>
+          <span style="font-size:12px;color:#e5e5e5;text-transform:capitalize;font-weight:500;">${report.content.severity} Severity</span>
         </div>
       </div>
     </div>
@@ -438,9 +438,9 @@ export default function Map({
         {reports.length > 0 && (
           <button
             onClick={() => setShowAllPopups(!showAllPopups)}
-            className={`absolute top-4 right-16 z-10 px-3 py-2 rounded-lg font-medium text-sm shadow-lg transition-colors ${showAllPopups
-                ? 'bg-blue-600 text-white'
-                : 'bg-[#1a1a1a]/90 backdrop-blur border border-[#333] text-gray-200 hover:bg-[#262626]'
+            className={`absolute top-4 right-16 z-10 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 backdrop-blur-md shadow-lg border ${showAllPopups
+              ? 'bg-blue-600/90 border-blue-500 text-white shadow-blue-500/30'
+              : 'bg-[#1a1a1a]/80 border-white/10 text-gray-200 hover:bg-[#262626]/80 hover:scale-105'
               }`}
           >
             {showAllPopups ? 'Hide Info' : 'Show All'}

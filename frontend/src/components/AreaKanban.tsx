@@ -135,64 +135,69 @@ export default function AreaKanban({ area, reports, onUpdateReport }: AreaKanban
 
   if (areaReports.length === 0) {
     return (
-      <div className="py-4 text-center text-gray-500 text-sm">
-        No reports in this area
+      <div className="py-8 text-center text-gray-500 text-xs italic">
+        No reports tracked in this area
       </div>
     );
   }
 
   return (
-    <div className="mt-3">
-      {/* Header with total cost */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <span className="text-xs text-gray-500">{areaReports.length} reports</span>
-        <span className="text-xs text-emerald-400 font-medium">
-          ${totalCost.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} CAD
-        </span>
+    <div className="p-3">
+      {/* Header with total cost - Minimal */}
+      <div className="flex items-center justify-between mb-4 px-1">
+        <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{areaReports.length} TICKETS</span>
+        {totalCost > 0 && (
+          <span className="text-xs text-emerald-400 font-mono font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full">
+            ${totalCost.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} CAD
+          </span>
+        )}
       </div>
 
-      {/* Kanban Columns */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      {/* Kanban Columns - Horizontal Scroll */}
+      <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
         {STATUS_COLUMNS.map(({ status, label, color }) => (
           <div
             key={status}
-            className="flex-shrink-0 w-36 bg-[#0f0f0f] rounded-lg border border-[#333] flex flex-col"
+            className="flex-shrink-0 w-40 flex flex-col bg-white/5 rounded-xl border border-white/5"
             onDragOver={handleDragOver}
             onDrop={() => handleDrop(status)}
           >
             {/* Column Header */}
-            <div className="px-2 py-1.5 border-b border-[#333] flex items-center gap-1.5">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-xs font-medium text-gray-300">{label}</span>
-              <span className="text-xs text-gray-600 ml-auto">
+            <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor]"
+                  style={{ color: color, backgroundColor: color }}
+                />
+                <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-wide">{label}</span>
+              </div>
+              <span className="text-[10px] text-gray-500 font-mono">
                 {reportsByStatus[status].length}
               </span>
             </div>
 
             {/* Column Content */}
-            <div className="flex-1 p-1.5 space-y-1.5 max-h-48 overflow-y-auto">
+            <div className="flex-1 p-2 space-y-2 min-h-[150px] max-h-[300px] overflow-y-auto custom-scrollbar bg-black/20">
               {reportsByStatus[status].map((report) => (
                 <div
                   key={report.id}
                   draggable
                   onDragStart={() => handleDragStart(report)}
-                  className={`bg-[#1a1a1a] border border-[#333] rounded p-2 cursor-grab active:cursor-grabbing hover:border-[#444] transition-all ${
-                    draggedReport?.id === report.id ? 'opacity-50 scale-95' : ''
-                  }`}
+                  className={`bg-[#1a1a1a] border border-white/5 rounded-lg p-2.5 cursor-grab active:cursor-grabbing hover:border-blue-500/30 hover:bg-[#202020] transition-all group ${draggedReport?.id === report.id ? 'opacity-50 scale-95' : ''
+                    }`}
                 >
                   {/* Title */}
-                  <p className="text-xs text-gray-200 line-clamp-2 mb-1">
+                  <p className="text-[11px] font-medium text-gray-300 line-clamp-2 mb-2 group-hover:text-blue-100 transition-colors">
                     {report.content.title}
                   </p>
 
-                  {/* Severity badge */}
-                  <div className="flex items-center justify-between">
+                  {/* Footer */}
+                  <div className="flex items-center justify-between mt-auto">
                     <span
-                      className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white"
-                      style={{ backgroundColor: SEVERITY_COLORS[report.content.severity] }}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${report.content.severity === 'high' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                          report.content.severity === 'medium' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        }`}
                     >
                       {report.content.severity}
                     </span>
@@ -200,31 +205,34 @@ export default function AreaKanban({ area, reports, onUpdateReport }: AreaKanban
                     {/* Cost */}
                     {editingCost?.reportId === report.id ? (
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[10px] text-emerald-500">$</span>
                         <input
                           type="number"
                           value={editingCost.amount}
                           onChange={(e) =>
                             setEditingCost({ ...editingCost, amount: e.target.value })
                           }
-                          className="w-14 px-1 py-0.5 bg-[#262626] border border-[#404040] rounded text-[10px] text-gray-200 focus:border-emerald-500 outline-none"
-                          step="0.01"
-                          min="0"
+                          className="w-12 px-1 py-0.5 bg-black border border-emerald-500/50 rounded text-[10px] text-emerald-400 focus:outline-none"
+                          autoFocus
                           onClick={(e) => e.stopPropagation()}
                         />
                         <button
                           onClick={handleSaveCost}
-                          className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[10px] hover:bg-emerald-500"
+                          className="text-emerald-400 hover:text-emerald-300"
                         >
-                          OK
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
                         </button>
                       </div>
                     ) : (
                       <span
                         onClick={(e) => handleStartCostEdit(report, e)}
-                        className="text-[10px] text-emerald-400 cursor-pointer hover:text-emerald-300"
+                        className={`text-[10px] font-mono hover:underline cursor-pointer ${report.aiDraft.estimatedCost ? 'text-emerald-400' : 'text-gray-600 hover:text-emerald-400'
+                          }`}
                       >
                         {report.aiDraft.estimatedCost
-                          ? `$${(report.aiDraft.estimatedCost.amount * (report.aiDraft.estimatedCost.quantity || 1)).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                          ? `$${(report.aiDraft.estimatedCost.amount * (report.aiDraft.estimatedCost.quantity || 1)).toLocaleString('en-CA', { notation: 'compact' })}`
                           : '+$'}
                       </span>
                     )}
@@ -233,25 +241,13 @@ export default function AreaKanban({ area, reports, onUpdateReport }: AreaKanban
               ))}
 
               {reportsByStatus[status].length === 0 && (
-                <div className="text-center py-3 text-gray-600 text-[10px]">
-                  Empty
+                <div className="h-full flex items-center justify-center py-4 opacity-20">
+                  <p className="text-[9px] uppercase tracking-widest font-bold text-gray-500">Empty</p>
                 </div>
               )}
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Summary */}
-      <div className="mt-2 pt-2 border-t border-[#333] flex items-center justify-between px-1">
-        <div className="flex gap-3">
-          {STATUS_COLUMNS.map(({ status, label, color }) => (
-            <div key={status} className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-              <span className="text-[10px] text-gray-500">{reportsByStatus[status].length}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

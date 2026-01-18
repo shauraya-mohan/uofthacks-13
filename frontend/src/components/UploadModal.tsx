@@ -21,12 +21,24 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
 const CATEGORIES: Category[] = [
-  'broken_sidewalk',
-  'missing_ramp',
   'blocked_path',
-  'steep_grade',
-  'poor_lighting',
+  'broken_sidewalk',
+  'construction_barrier',
+  'drainage_issue',
+  'missing_ramp',
+  'missing_signage',
+  'missing_tactile',
   'narrow_passage',
+  'no_crossing_signal',
+  'no_curb_cut',
+  'no_ramp',
+  'obstacle_on_path',
+  'overgrown_vegetation',
+  'parking_violation',
+  'poor_lighting',
+  'pothole',
+  'slippery_surface',
+  'steep_grade',
   'uneven_surface',
   'other',
 ];

@@ -5,12 +5,24 @@ export type Severity = 'low' | 'medium' | 'high';
 export type ReportStatus = 'draft' | 'open' | 'acknowledged' | 'in_progress' | 'resolved';
 
 export type Category =
-  | 'broken_sidewalk'
-  | 'missing_ramp'
   | 'blocked_path'
-  | 'steep_grade'
-  | 'poor_lighting'
+  | 'broken_sidewalk'
+  | 'construction_barrier'
+  | 'drainage_issue'
+  | 'missing_ramp'
+  | 'missing_signage'
+  | 'missing_tactile'
   | 'narrow_passage'
+  | 'no_crossing_signal'
+  | 'no_curb_cut'
+  | 'no_ramp'
+  | 'obstacle_on_path'
+  | 'overgrown_vegetation'
+  | 'parking_violation'
+  | 'poor_lighting'
+  | 'pothole'
+  | 'slippery_surface'
+  | 'steep_grade'
   | 'uneven_surface'
   | 'other';
 
@@ -103,14 +115,26 @@ export const STATUS_OUTLINE_COLORS: Record<ReportStatus, string> = {
   resolved: '#15803d',     // green-700
 };
 
-// Category display names
+// Category display names (alphabetical, 'other' at end)
 export const CATEGORY_LABELS: Record<Category, string> = {
-  broken_sidewalk: 'Broken Sidewalk',
-  missing_ramp: 'Missing Ramp',
   blocked_path: 'Blocked Path',
-  steep_grade: 'Steep Grade',
-  poor_lighting: 'Poor Lighting',
+  broken_sidewalk: 'Broken Sidewalk',
+  construction_barrier: 'Construction Barrier',
+  drainage_issue: 'Drainage Issue',
+  missing_ramp: 'Missing Curb Ramp',
+  missing_signage: 'Missing Signage',
+  missing_tactile: 'Missing Tactile Paving',
   narrow_passage: 'Narrow Passage',
+  no_crossing_signal: 'No Crossing Signal',
+  no_curb_cut: 'No Curb Cut',
+  no_ramp: 'No Ramp (Stairs Only)',
+  obstacle_on_path: 'Obstacle on Path',
+  overgrown_vegetation: 'Overgrown Vegetation',
+  parking_violation: 'Parking Violation',
+  poor_lighting: 'Poor Lighting',
+  pothole: 'Pothole',
+  slippery_surface: 'Slippery Surface',
+  steep_grade: 'Steep Grade',
   uneven_surface: 'Uneven Surface',
   other: 'Other',
 };

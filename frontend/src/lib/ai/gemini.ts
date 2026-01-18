@@ -8,16 +8,28 @@ import type { Category, Severity } from '../types';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-// Valid categories and severities for validation
+// Valid categories and severities for validation (alphabetical)
 const VALID_CATEGORIES: Category[] = [
-  'broken_sidewalk',
-  'missing_ramp',
   'blocked_path',
-  'steep_grade',
-  'poor_lighting',
+  'broken_sidewalk',
+  'construction_barrier',
+  'drainage_issue',
+  'missing_ramp',
+  'missing_signage',
+  'missing_tactile',
   'narrow_passage',
+  'no_crossing_signal',
+  'no_curb_cut',
+  'no_ramp',
+  'obstacle_on_path',
+  'overgrown_vegetation',
+  'parking_violation',
+  'poor_lighting',
+  'pothole',
+  'slippery_surface',
+  'steep_grade',
   'uneven_surface',
-  'other',
+  'other', // Keep 'other' at the end
 ];
 
 const VALID_SEVERITIES: Severity[] = ['low', 'medium', 'high'];
@@ -32,7 +44,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no explanation):
   "title": "Short title (3-6 words describing the barrier)",
   "description": "Clear description of the barrier and its impact on accessibility (2-3 sentences)",
   "suggestedFix": "Practical recommendation to fix this issue (1-2 sentences)",
-  "category": "one of: broken_sidewalk, missing_ramp, blocked_path, steep_grade, poor_lighting, narrow_passage, uneven_surface, other",
+  "category": "one of: blocked_path, broken_sidewalk, construction_barrier, drainage_issue, missing_ramp, missing_signage, missing_tactile, narrow_passage, no_crossing_signal, no_curb_cut, no_ramp, obstacle_on_path, overgrown_vegetation, parking_violation, poor_lighting, pothole, slippery_surface, steep_grade, uneven_surface, other",
   "severity": "low, medium, or high based on safety risk and accessibility impact",
   "confidence": 0.0 to 1.0,
   "estimatedCost": {
@@ -41,6 +53,27 @@ Respond ONLY with valid JSON in this exact format (no markdown, no explanation):
     "quantity": estimated quantity needed (number, optional - use 1 for "total" unit)
   }
 }
+
+Category meanings:
+- blocked_path: Path obstructed by temporary or permanent objects
+- broken_sidewalk: Cracked, damaged, or deteriorated sidewalk
+- construction_barrier: Construction site blocking accessible route without detour
+- drainage_issue: Water pooling on walkway
+- missing_ramp: Missing curb ramp at crossing
+- missing_signage: No accessible wayfinding signs
+- missing_tactile: Missing tactile warning/guiding strips for visually impaired
+- narrow_passage: Pathway too narrow for wheelchairs
+- no_crossing_signal: Missing audio/visual pedestrian crossing signal
+- no_curb_cut: No curb cut where needed
+- no_ramp: Entrance with only stairs, no ramp alternative
+- obstacle_on_path: Permanent obstacle (pole, sign, furniture) on walkway
+- overgrown_vegetation: Plants blocking or narrowing pathway
+- parking_violation: Accessible parking blocked or misused
+- poor_lighting: Inadequate lighting for safe navigation
+- pothole: Dangerous hole in pavement
+- slippery_surface: Wet, icy, or slick surface
+- steep_grade: Grade too steep for wheelchair users
+- uneven_surface: Uneven or buckled pavement
 
 Guidelines:
 - "title" should be descriptive but concise (e.g., "Cracked Sidewalk Section", "Missing Curb Ramp")
@@ -54,6 +87,9 @@ Guidelines:
   - Lighting installation: $1,500-4,000 CAD per fixture
   - Path clearing/widening: $100-300 CAD per linear meter
   - Surface leveling: $75-150 CAD per square meter
+  - Tactile paving: $100-200 CAD per square meter
+  - Signage installation: $200-500 CAD per sign
+  - Pothole repair: $50-150 CAD per pothole
 
 If no accessibility barrier is visible, use category "other" with a description of what you see.`;
 

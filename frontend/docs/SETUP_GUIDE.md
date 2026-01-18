@@ -39,7 +39,7 @@ Expected response:
 
 ### 4. Test the App
 Open http://localhost:3000 and:
-1. Click "Report Barrier"
+1. Click "Report Issue"
 2. Upload an image
 3. Confirm location
 4. Submit report
@@ -253,7 +253,7 @@ curl -X POST https://your-app.vercel.app/api/db/init
 
 **2. Solution Demo (90s)**
 - Open app on phone
-- Click "Report Barrier"
+- Click "Report Issue"
 - Take photo of barrier (or use sample)
 - GPS auto-detects location
 - AI analyzes: "Broken sidewalk, high severity"

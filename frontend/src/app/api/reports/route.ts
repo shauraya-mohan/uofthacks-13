@@ -300,12 +300,19 @@ export async function POST(request: NextRequest) {
     const result = await db.collection<DbReport>('reports').insertOne(report);
 
     // Send email notifications to area administrators (non-blocking)
-    if (isEmailConfigured()) {
+    console.log('Checking email configuration for new report:', result.insertedId.toString());
+    const emailConfigured = isEmailConfigured();
+    console.log('Email configured:', emailConfigured);
+
+    if (emailConfigured) {
       // Fetch all active areas to check which ones contain this report
+      // Note: isActive might not be set on older areas, treat missing as true
+      console.log('Fetching active areas for email notifications...');
       const allAreas = await db
         .collection<DbArea>('areas')
-        .find({ isActive: true })
+        .find({ isActive: { $ne: false } }) // Include areas where isActive is true OR missing
         .toArray();
+      console.log(`Found ${allAreas.length} active areas`);
 
       // Transform to AdminArea type for geo matching
       const adminAreas: AdminArea[] = allAreas.map((area) => ({
@@ -321,11 +328,15 @@ export async function POST(request: NextRequest) {
         { lat: coordinates.lat, lng: coordinates.lng },
         adminAreas
       );
+      console.log(`Report location (${coordinates.lat}, ${coordinates.lng}) matches ${matchingAreas.length} areas:`,
+        matchingAreas.map(a => a.name));
 
       // Filter to only areas with registered emails
       const areasWithEmails = matchingAreas.filter(
         (area) => area.notificationEmails && area.notificationEmails.length > 0
       );
+      console.log(`Areas with notification emails: ${areasWithEmails.length}`,
+        areasWithEmails.map(a => ({ name: a.name, emails: a.notificationEmails?.length || 0 })));
 
       if (areasWithEmails.length > 0) {
         // Create Report object for email

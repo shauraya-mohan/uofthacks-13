@@ -20,7 +20,7 @@ A web app for reporting and mapping accessibility barriers. Users upload photos/
 
 3. **Demo the App**
    - Open [http://localhost:3000](http://localhost:3000)
-   - Click "Report Barrier" → upload any image
+   - Click "Report Issue" → upload any image
    - Allow geolocation (or click map to set location)
    - Click "Analyze" → see AI results (mock mode)
    - Click "Submit" → pin appears on map!

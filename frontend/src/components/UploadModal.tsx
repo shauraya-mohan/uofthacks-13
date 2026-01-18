@@ -195,8 +195,10 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
       setGpsCoordinates(pos);
       setGeoMethod('auto');
       setGeoError(null);
-    } catch {
-      setGeoError('Could not get your location. Pan the map to set location.');
+    } catch (err) {
+      // Show specific error message if available
+      const errorMessage = err instanceof Error ? err.message : 'Could not get your location.';
+      setGeoError(`${errorMessage} Pan the map to set location.`);
       setGeoMethod('manual');
     }
   };
@@ -225,8 +227,10 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
       setGeoError(null);
       // Trigger map to fly to this position
       setFlyToPosition({ ...pos });
-    } catch {
-      setGeoError('Could not get your location.');
+    } catch (err) {
+      // Show specific error message if available
+      const errorMessage = err instanceof Error ? err.message : 'Could not get your location.';
+      setGeoError(errorMessage);
     } finally {
       setIsLoadingGps(false);
     }
@@ -791,7 +795,7 @@ export default function UploadModal({ isOpen, onClose, onSubmit }: UploadModalPr
           {step === 'select' && (
             <div className="space-y-4">
               <div className="pr-8">
-                <h2 className="text-xl font-semibold text-gray-100 mb-1">Report Barrier</h2>
+                <h2 className="text-xl font-semibold text-gray-100 mb-1">Report</h2>
                 <p className="text-gray-500 text-sm">
                   Upload a photo or video of the accessibility barrier.
                 </p>

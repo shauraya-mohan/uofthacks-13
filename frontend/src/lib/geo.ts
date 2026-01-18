@@ -3,28 +3,79 @@
 import type { Coordinates, Report, AdminArea } from './types';
 
 /**
+ * Custom error class for geolocation with detailed error codes
+ */
+export class GeoLocationError extends Error {
+  code: number;
+
+  constructor(code: number, message: string) {
+    super(message);
+    this.name = 'GeoLocationError';
+    this.code = code;
+  }
+}
+
+/**
  * Get current position via browser Geolocation API
+ * Mobile browsers require HTTPS for geolocation to work
  */
 export function getCurrentPosition(): Promise<Coordinates> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'));
+    // Check if running in secure context (required for mobile)
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      console.warn('Geolocation requires HTTPS on mobile browsers');
+      reject(new GeoLocationError(
+        0,
+        'Location access requires a secure connection (HTTPS). Please use HTTPS or set location manually.'
+      ));
       return;
     }
 
+    if (!navigator.geolocation) {
+      console.warn('Geolocation API not available');
+      reject(new GeoLocationError(0, 'Geolocation not supported by your browser'));
+      return;
+    }
+
+    console.log('Requesting geolocation...');
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        console.log('Geolocation success:', {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
         resolve({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
       },
       (error) => {
-        reject(error);
+        // Provide specific error messages based on error code
+        let message: string;
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            message = 'Location permission denied. Please allow location access in your browser settings.';
+            console.warn('Geolocation permission denied by user');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            message = 'Location unavailable. Please check your GPS/location settings.';
+            console.warn('Geolocation position unavailable');
+            break;
+          case error.TIMEOUT:
+            message = 'Location request timed out. Please try again or set location manually.';
+            console.warn('Geolocation request timed out');
+            break;
+          default:
+            message = 'Could not get your location. Please set location manually.';
+            console.warn('Geolocation error:', error);
+        }
+        reject(new GeoLocationError(error.code, message));
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000, // Increased timeout for mobile GPS initialization
         maximumAge: 0,
       }
     );

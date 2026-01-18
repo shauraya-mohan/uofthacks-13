@@ -105,7 +105,7 @@ curl http://localhost:3001/api/areas
 
 ### 1. Test User Flow (5 minutes)
 1. Open http://localhost:3001
-2. Click "Report Barrier"
+2. Click "Report Issue"
 3. Upload an image
 4. Confirm location (GPS or manual)
 5. See AI analysis results

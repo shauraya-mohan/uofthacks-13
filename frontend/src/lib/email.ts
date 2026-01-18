@@ -38,7 +38,22 @@ function getEmailProvider(): EmailProvider {
  * Check if email sending is configured
  */
 export function isEmailConfigured(): boolean {
-  return getEmailProvider() !== 'none';
+  const provider = getEmailProvider();
+  const configured = provider !== 'none';
+
+  // Log configuration status for debugging
+  console.log(`Email configuration check: provider=${provider}, configured=${configured}`);
+  if (!configured) {
+    console.warn(
+      'Email not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD, or RESEND_API_KEY environment variables.'
+    );
+    // Log which variables are missing (without values)
+    if (!GMAIL_USER) console.warn('  - GMAIL_USER is not set');
+    if (!GMAIL_APP_PASSWORD) console.warn('  - GMAIL_APP_PASSWORD is not set');
+    if (!RESEND_API_KEY) console.warn('  - RESEND_API_KEY is not set');
+  }
+
+  return configured;
 }
 
 /**
@@ -327,6 +342,15 @@ export async function sendReportNotifications(
   report: Report,
   matchingAreas: AdminArea[]
 ): Promise<{ sent: number; failed: number }> {
+  console.log('sendReportNotifications called', {
+    reportId: report.id,
+    matchingAreasCount: matchingAreas.length,
+    areasWithEmails: matchingAreas.map(a => ({
+      name: a.name,
+      emailCount: a.notificationEmails?.length || 0
+    }))
+  });
+
   if (!isEmailConfigured()) {
     console.log('Email not configured, skipping notifications');
     return { sent: 0, failed: 0 };

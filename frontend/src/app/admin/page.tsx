@@ -23,7 +23,7 @@ const AdminMap = dynamic(() => import('@/components/AdminMap'), {
 
 export default function AdminPage() {
   const { reports, isLoaded: reportsLoaded, refreshReports, updateReport, removeReport } = useReports();
-  const { areas, isLoaded: areasLoaded, addArea, updateArea, removeArea } = useAreas();
+  const { areas, isLoaded: areasLoaded, addArea, updateArea, removeArea, reorderAreas } = useAreas();
   const { toasts, addToast, dismissToast } = useToast();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -108,6 +108,16 @@ export default function AdminPage() {
       addToast('Area deleted', 'info');
     },
     [removeArea, selectedAreaId, addToast]
+  );
+
+  const handleAreaUpdated = useCallback(
+    async (areaId: string, geometry: GeoJSON.Polygon) => {
+      const success = await updateArea(areaId, { geometry });
+      if (!success) {
+        addToast('Failed to update area', 'error');
+      }
+    },
+    [updateArea, addToast]
   );
 
   const handleAreaRename = useCallback(
@@ -205,6 +215,7 @@ export default function AdminPage() {
             onAreaDelete={handleAreaDeleted}
             onAreaRename={handleAreaRename}
             onAreaUpdateEmails={handleAreaUpdateEmails}
+            onAreasReorder={reorderAreas}
             onUpdateReport={handleUpdateReport}
             onReportClick={handlePinClick}
           />
@@ -219,6 +230,7 @@ export default function AdminPage() {
               selectedAreaId={selectedAreaId}
               highlightedReportIds={highlightedReportIds}
               onAreaCreated={handleAreaCreated}
+              onAreaUpdated={handleAreaUpdated}
               onAreaDeleted={handleAreaDeleted}
               onPinClick={handlePinClick}
             />

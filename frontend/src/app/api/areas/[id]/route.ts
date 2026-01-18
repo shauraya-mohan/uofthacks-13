@@ -56,7 +56,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, priority, isActive, notificationEmails } = body;
+    const { name, priority, isActive, notificationEmails, geometry } = body;
 
     const updateData: Record<string, unknown> = {};
 
@@ -70,6 +70,10 @@ export async function PATCH(
 
     if (isActive !== undefined) {
       updateData.isActive = isActive;
+    }
+
+    if (geometry !== undefined) {
+      updateData.polygon = geometry;
     }
 
     // Handle notification emails update

@@ -118,6 +118,15 @@ export function useAreas() {
     }
   }, []);
 
+  const reorderAreas = useCallback((orderedIds: string[]) => {
+    setAreas((prev) => {
+      const areaMap = new Map(prev.map((a) => [a.id, a]));
+      return orderedIds
+        .map((id) => areaMap.get(id))
+        .filter((a): a is AdminArea => a !== undefined);
+    });
+  }, []);
+
   return {
     areas,
     isLoaded,
@@ -126,5 +135,6 @@ export function useAreas() {
     removeArea,
     clearAreas,
     refreshAreas,
+    reorderAreas,
   };
 }

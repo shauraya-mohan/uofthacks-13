@@ -13,6 +13,7 @@ interface AdminSidebarProps {
   onAreaDelete: (areaId: string) => void;
   onAreaRename: (areaId: string, newName: string) => void;
   onAreaUpdateEmails: (areaId: string, emails: string[]) => Promise<void>;
+  onAreasReorder: (areaIds: string[]) => void;
   onUpdateReport: (reportId: string, updates: Partial<Report>) => Promise<void>;
   onReportClick?: (report: Report) => void;
 }
@@ -25,6 +26,7 @@ export default function AdminSidebar({
   onAreaDelete,
   onAreaRename,
   onAreaUpdateEmails,
+  onAreasReorder,
   onUpdateReport,
   onReportClick,
 }: AdminSidebarProps) {
@@ -33,6 +35,8 @@ export default function AdminSidebar({
   const [emailError, setEmailError] = useState('');
   const [isSavingEmails, setIsSavingEmails] = useState(false);
   const [localEmails, setLocalEmails] = useState<string[]>([]);
+  const [draggedAreaId, setDraggedAreaId] = useState<string | null>(null);
+  const [dragOverAreaId, setDragOverAreaId] = useState<string | null>(null);
 
   const areaCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -110,16 +114,19 @@ export default function AdminSidebar({
     }
   };
 
-  // Calculate total costs per area
+  // Calculate total costs per area (only in_progress and resolved status = money spent)
   const areaCosts = useMemo(() => {
     const costs = new Map<string, number>();
     areas.forEach((area) => {
       const areaReports = getReportsInArea(reports, area);
       let total = 0;
       areaReports.forEach((report) => {
-        const cost = report.aiDraft.estimatedCost;
-        if (cost) {
-          total += cost.amount * (cost.quantity || 1);
+        // Only count costs for in_progress and resolved reports
+        if (report.status === 'in_progress' || report.status === 'resolved') {
+          const cost = report.aiDraft.estimatedCost;
+          if (cost) {
+            total += cost.amount * (cost.quantity || 1);
+          }
         }
       });
       costs.set(area.id, total);
@@ -159,14 +166,50 @@ export default function AdminSidebar({
           </div>
         ) : (
           <ul className="space-y-1 p-2">
-            {areas.map((area) => {
+            {areas.map((area, index) => {
               const count = areaCounts.get(area.id) || 0;
               const isSelected = selectedAreaId === area.id;
+              const isDragging = draggedAreaId === area.id;
+              const isDragOver = dragOverAreaId === area.id;
 
               return (
-                <li key={area.id} className="rounded-xl overflow-hidden transition-all duration-300">
+                <li
+                  key={area.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedAreaId(area.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragEnd={() => {
+                    setDraggedAreaId(null);
+                    setDragOverAreaId(null);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (draggedAreaId && draggedAreaId !== area.id) {
+                      setDragOverAreaId(area.id);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    setDragOverAreaId(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedAreaId && draggedAreaId !== area.id) {
+                      const draggedIndex = areas.findIndex((a) => a.id === draggedAreaId);
+                      const dropIndex = index;
+                      const newOrder = [...areas];
+                      const [removed] = newOrder.splice(draggedIndex, 1);
+                      newOrder.splice(dropIndex, 0, removed);
+                      onAreasReorder(newOrder.map((a) => a.id));
+                    }
+                    setDraggedAreaId(null);
+                    setDragOverAreaId(null);
+                  }}
+                  className={`transition-all duration-200 ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'border-t-2 border-blue-500' : ''}`}
+                >
                   <div
-                    className={`group p-4 cursor-pointer transition-all duration-300 ${isSelected
+                    className={`group p-4 cursor-pointer transition-all duration-300 rounded-xl ${isSelected
                         ? 'bg-blue-600/10 border border-blue-500/30 shadow-[0_0_20px_rgba(37,99,235,0.1)]'
                         : 'hover:bg-white/5 border border-transparent hover:border-white/5'
                       }`}

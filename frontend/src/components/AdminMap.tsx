@@ -53,6 +53,7 @@ interface AdminMapProps {
   selectedAreaId: string | null;
   highlightedReportIds: string[];
   onAreaCreated: (geometry: GeoJSON.Polygon) => void | Promise<void>;
+  onAreaUpdated: (areaId: string, geometry: GeoJSON.Polygon) => void | Promise<void>;
   onAreaDeleted: (areaId: string) => void | Promise<void>;
   onPinClick?: (report: Report) => void;
   className?: string;
@@ -64,6 +65,7 @@ export default function AdminMap({
   selectedAreaId,
   highlightedReportIds,
   onAreaCreated,
+  onAreaUpdated,
   onAreaDeleted,
   onPinClick,
   className = '',
@@ -77,6 +79,7 @@ export default function AdminMap({
   const onPinClickRef = useRef(onPinClick);
   const reportsRef = useRef(reports);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lng: number; lat: number } | null>(null);
 
   // Keep refs updated
   useEffect(() => {
@@ -220,9 +223,11 @@ export default function AdminMap({
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
+            const loc = { lng: position.coords.longitude, lat: position.coords.latitude };
+            setUserLocation(loc);
             if (map.current) {
               map.current.flyTo({
-                center: [position.coords.longitude, position.coords.latitude],
+                center: [loc.lng, loc.lat],
                 zoom: 16,
                 duration: 1500,
               });
@@ -258,6 +263,15 @@ export default function AdminMap({
       }
     };
 
+    const handleUpdate = (e: { features: GeoJSON.Feature[] }) => {
+      e.features.forEach((feature) => {
+        const areaId = areaIdMap.current.get(String(feature.id));
+        if (areaId && feature.geometry.type === 'Polygon') {
+          onAreaUpdated(areaId, feature.geometry as GeoJSON.Polygon);
+        }
+      });
+    };
+
     const handleDelete = (e: { features: GeoJSON.Feature[] }) => {
       e.features.forEach((feature) => {
         const areaId = areaIdMap.current.get(String(feature.id));
@@ -268,13 +282,15 @@ export default function AdminMap({
     };
 
     map.current.on('draw.create', handleCreate);
+    map.current.on('draw.update', handleUpdate);
     map.current.on('draw.delete', handleDelete);
 
     return () => {
       map.current?.off('draw.create', handleCreate);
+      map.current?.off('draw.update', handleUpdate);
       map.current?.off('draw.delete', handleDelete);
     };
-  }, [onAreaCreated, onAreaDeleted]);
+  }, [onAreaCreated, onAreaUpdated, onAreaDeleted]);
 
   // Sync areas to draw control
   useEffect(() => {
@@ -410,9 +426,9 @@ export default function AdminMap({
     });
   }, [reports, createMarkerElement, mapLoaded]);
 
-  // Highlight selected area
+  // Highlight selected area and fly to it
   useEffect(() => {
-    if (!draw.current || !selectedAreaId) return;
+    if (!draw.current || !map.current || !selectedAreaId) return;
 
     // Find the draw feature ID for the selected area
     const drawFeatureId = Array.from(areaIdMap.current.entries()).find(
@@ -422,13 +438,95 @@ export default function AdminMap({
     if (drawFeatureId) {
       draw.current.changeMode('simple_select', { featureIds: [drawFeatureId] });
     }
-  }, [selectedAreaId]);
+
+    // Find the selected area and fly to its bounds
+    const selectedArea = areas.find((a) => a.id === selectedAreaId);
+    if (selectedArea && selectedArea.geometry.coordinates[0]) {
+      const coords = selectedArea.geometry.coordinates[0] as [number, number][];
+
+      // Calculate bounds from polygon coordinates
+      let minLng = Infinity, maxLng = -Infinity;
+      let minLat = Infinity, maxLat = -Infinity;
+
+      coords.forEach(([lng, lat]) => {
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      });
+
+      // Fly to the area bounds with padding
+      map.current.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        {
+          padding: { top: 100, bottom: 100, left: 50, right: 50 },
+          duration: 1000,
+          maxZoom: 17,
+        }
+      );
+    }
+  }, [selectedAreaId, areas]);
+
+  const handleResetView = useCallback(() => {
+    if (!map.current) return;
+
+    // Get fresh GPS position
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (map.current) {
+            map.current.flyTo({
+              center: [position.coords.longitude, position.coords.latitude],
+              zoom: 16,
+              pitch: 45,
+              bearing: -15,
+              duration: 1500,
+            });
+          }
+        },
+        () => {
+          // Fallback to default center if GPS fails
+          if (map.current) {
+            map.current.flyTo({
+              center: [DEFAULT_CENTER.lng, DEFAULT_CENTER.lat],
+              zoom: DEFAULT_ZOOM,
+              pitch: 45,
+              bearing: -15,
+              duration: 1500,
+            });
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      // No geolocation support, use default
+      map.current.flyTo({
+        center: [DEFAULT_CENTER.lng, DEFAULT_CENTER.lat],
+        zoom: DEFAULT_ZOOM,
+        pitch: 45,
+        bearing: -15,
+        duration: 1500,
+      });
+    }
+  }, []);
 
   return (
-    <div
-      ref={mapContainer}
-      className={`w-full h-full ${className}`}
-      style={{ minHeight: '400px' }}
-    />
+    <div className={`relative w-full h-full ${className}`} style={{ minHeight: '400px' }}>
+      <div
+        ref={mapContainer}
+        className="w-full h-full"
+      />
+      {/* Reset View Button - GPS Location */}
+      <button
+        onClick={handleResetView}
+        className="absolute top-4 right-14 z-10 p-2 bg-[#1a1a1a]/90 backdrop-blur-sm rounded-lg shadow-lg border border-white/10 hover:bg-[#2a2a2a] transition-colors group"
+        title="Center on my location"
+      >
+        <svg className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+    </div>
   );
 }

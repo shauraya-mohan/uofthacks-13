@@ -1,136 +1,80 @@
 """
-LangGraph agent for semantic search with tool use.
-Uses ReAct pattern: Reason → Act → Observe → Repeat until done.
+LangGraph Multi-Agent System for Accessibility Search.
+Agents:
+1. Intent Analyst: Understands user query and defines a plan.
+2. Search Specialist: Executes search tools based on the plan.
+3. Supervisor: Aggregates results and provides final response.
 """
 
 import os
-from typing import List, Dict, Any, Annotated, TypedDict, Sequence
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from typing import Dict, Any, List
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from dotenv import load_dotenv
 
+# Import the shared state
+from state import AgentState
+
+# Import tool definitions
 from tools import ALL_TOOLS
+
+# Import agent nodes
+from agents.intent_analyst import intent_analyst_node
+from agents.search_specialist import search_specialist_node
+from agents.supervisor import supervisor_node
 
 # Load environment variables
 load_dotenv()
 
 
-class AgentState(TypedDict):
-    """State that persists across agent steps."""
-    messages: Annotated[Sequence[BaseMessage], "The conversation history"]
-    matching_ids: List[str]  # Accumulated matching report IDs
-    reasoning: str  # Agent's reasoning explanation
-
-
-def get_llm() -> ChatGoogleGenerativeAI:
-    """Get the Gemini LLM for agent reasoning."""
-    api_key = os.getenv('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is required")
+def create_multi_agent_graph():
+    """Create the multi-agent workflow graph."""
     
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        google_api_key=api_key,
-        temperature=0.1,  # Low temperature for consistent tool use
-    )
-
-
-def create_agent():
-    """Create the LangGraph agent with tools."""
+    workflow = StateGraph(AgentState)
     
-    llm = get_llm()
-    llm_with_tools = llm.bind_tools(ALL_TOOLS)
+    # 1. Add Nodes
+    workflow.add_node("intent_analyst", intent_analyst_node)
+    workflow.add_node("search_specialist", search_specialist_node)
+    workflow.add_node("tools", ToolNode(ALL_TOOLS))
+    workflow.add_node("supervisor", supervisor_node)
     
-    # System prompt for the agent
-    system_prompt = """You are an accessibility report search assistant. Your job is to help users find relevant accessibility barrier reports.
-
-You have access to these tools:
-1. vector_search - Semantic search using natural language. Use this as your PRIMARY search method.
-2. filter_by_category - Filter by barrier type (broken_sidewalk, missing_ramp, blocked_path, etc.)
-3. filter_by_severity - Filter by severity level (low, medium, high)
-4. filter_by_status - Filter by resolution status (draft, open, acknowledged, in_progress, resolved)
-5. filter_by_location - Filter by geographic location (requires lat, lng, radius)
-6. get_report_stats - Get aggregate statistics about all reports
-
-STRATEGY:
-1. Start with vector_search for semantic understanding of the query
-2. Apply additional filters ONLY if the user explicitly mentions category, severity, status, or location
-3. When combining results from multiple tools, take the INTERSECTION (reports that match ALL criteria)
-
-IMPORTANT:
-- Always use vector_search first for any content-based query
-- Be concise in your reasoning
-- Return results quickly - accuracy and speed are both important"""
-
-    def should_continue(state: AgentState) -> str:
-        """Determine if we should continue or end."""
-        messages = state["messages"]
+    # 2. Add Edges
+    
+    # Entry -> Intent Analyst
+    workflow.set_entry_point("intent_analyst")
+    
+    # Intent Analyst -> Search Specialist
+    workflow.add_edge("intent_analyst", "search_specialist")
+    
+    # Search Specialist -> Tools (conditional) or Supervisor
+    def route_search_specialist(state: AgentState):
+        messages = state['messages']
         last_message = messages[-1]
         
-        # If the LLM made tool calls, continue to tools
+        # If the specialist made tool calls, go to tools
         if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
             return "tools"
         
-        # Otherwise, end
-        return END
+        # Otherwise, if no tools needed (e.g. conversational), go straight to supervisor
+        return "supervisor"
     
-    def call_model(state: AgentState) -> Dict[str, Any]:
-        """Call the LLM to decide next action."""
-        messages = state["messages"]
-        
-        # Add system prompt to first message if not present
-        if not any(getattr(m, 'type', '') == 'system' for m in messages):
-            from langchain_core.messages import SystemMessage
-            messages = [SystemMessage(content=system_prompt)] + list(messages)
-        
-        response = llm_with_tools.invoke(messages)
-        
-        return {"messages": [response]}
+    workflow.add_conditional_edges(
+        "search_specialist", 
+        route_search_specialist, 
+        {
+            "tools": "tools",
+            "supervisor": "supervisor"
+        }
+    )
     
-    def process_tool_results(state: AgentState) -> Dict[str, Any]:
-        """Process tool results and update matching_ids."""
-        messages = state["messages"]
-        matching_ids = state.get("matching_ids", [])
-        
-        # Find the last tool message
-        for msg in reversed(messages):
-            if isinstance(msg, ToolMessage):
-                try:
-                    import json
-                    result = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
-                    
-                    if isinstance(result, dict) and "matching_ids" in result:
-                        new_ids = result["matching_ids"]
-                        
-                        if not matching_ids:
-                            # First tool result - use as base
-                            matching_ids = new_ids
-                        else:
-                            # Intersection with previous results
-                            matching_ids = [id for id in matching_ids if id in new_ids]
-                except:
-                    pass
-                break
-        
-        return {"matching_ids": matching_ids}
+    # Tools -> Supervisor
+    # (We assume single-turn tool execution for simplicity in this architecture, 
+    # but could loop back to specialist if needed for multi-hop)
+    workflow.add_edge("tools", "supervisor")
     
-    # Build the graph
-    workflow = StateGraph(AgentState)
-    
-    # Add nodes
-    workflow.add_node("agent", call_model)
-    workflow.add_node("tools", ToolNode(ALL_TOOLS))
-    workflow.add_node("process", process_tool_results)
-    
-    # Set entry point
-    workflow.set_entry_point("agent")
-    
-    # Add edges
-    workflow.add_conditional_edges("agent", should_continue, {"tools": "tools", END: END})
-    workflow.add_edge("tools", "process")
-    workflow.add_edge("process", "agent")
+    # Supervisor -> End
+    workflow.add_edge("supervisor", END)
     
     return workflow.compile()
 
@@ -143,19 +87,13 @@ def get_agent():
     """Get or create the agent (singleton)."""
     global _agent
     if _agent is None:
-        _agent = create_agent()
+        _agent = create_multi_agent_graph()
     return _agent
 
 
 async def run_search(query: str) -> Dict[str, Any]:
     """
-    Run a search query through the agent.
-    
-    Args:
-        query: Natural language search query
-    
-    Returns:
-        Dictionary with matchingIds, summary, reasoning, etc.
+    Run a search query through the multi-agent system.
     """
     agent = get_agent()
     
@@ -163,30 +101,21 @@ async def run_search(query: str) -> Dict[str, Any]:
     initial_state = {
         "messages": [HumanMessage(content=query)],
         "matching_ids": [],
+        "search_plan": None,
         "reasoning": "",
+        "trace": []
     }
     
-    # Run the agent
+    # Run the graph
     final_state = await agent.ainvoke(initial_state)
     
     # Extract results
     matching_ids = final_state.get("matching_ids", [])
+    summary = final_state.get("final_response", "")
+    reasoning = final_state.get("reasoning", "")
+    trace = final_state.get("trace", [])
     
-    # Get the agent's final message for reasoning
-    messages = final_state.get("messages", [])
-    reasoning = ""
-    summary = ""
-    
-    for msg in reversed(messages):
-        if isinstance(msg, AIMessage) and msg.content:
-            reasoning = msg.content
-            break
-    
-    # Generate summary
-    if not matching_ids:
-        summary = f"No reports found matching \"{query}\". Try different search terms."
-    else:
-        summary = f"Found {len(matching_ids)} reports matching your search."
+    print(f"[TRACE] Execution path: {trace}")
     
     return {
         "matchingIds": matching_ids,
@@ -194,4 +123,6 @@ async def run_search(query: str) -> Dict[str, Any]:
         "reasoning": reasoning,
         "totalReports": len(matching_ids),
         "matchCount": len(matching_ids),
+        "trace": trace
     }
+

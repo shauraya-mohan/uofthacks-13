@@ -1,28 +1,93 @@
 /**
- * Email notification utility using Resend
+ * Email notification utility
+ * Supports Gmail SMTP (via Nodemailer) or Resend API
  * Sends notifications to area administrators when new reports are created
  */
 
+import nodemailer from 'nodemailer';
 import type { Report, AdminArea } from './types';
 import { CATEGORY_LABELS, SEVERITY_COLORS } from './types';
 
+// Gmail SMTP configuration (preferred - free, no third-party service)
+const GMAIL_USER = process.env.GMAIL_USER;
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+
+// Resend configuration (fallback option)
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'MobilityCursor <notifications@resend.dev>';
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+// Email provider type
+type EmailProvider = 'gmail' | 'resend' | 'none';
+
+/**
+ * Determine which email provider is configured
+ */
+function getEmailProvider(): EmailProvider {
+  if (GMAIL_USER && GMAIL_APP_PASSWORD) {
+    return 'gmail';
+  }
+  if (RESEND_API_KEY) {
+    return 'resend';
+  }
+  return 'none';
+}
 
 /**
  * Check if email sending is configured
  */
 export function isEmailConfigured(): boolean {
-  return !!RESEND_API_KEY;
+  return getEmailProvider() !== 'none';
+}
+
+/**
+ * Create Gmail SMTP transporter
+ */
+function createGmailTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASSWORD,
+    },
+  });
+}
+
+/**
+ * Send email using Gmail SMTP
+ */
+async function sendEmailViaGmail(to: string[], subject: string, html: string): Promise<boolean> {
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    console.warn('Gmail credentials not configured');
+    return false;
+  }
+
+  try {
+    const transporter = createGmailTransporter();
+
+    const mailOptions = {
+      from: `MobilityCursor <${GMAIL_USER}>`,
+      to: to.join(', '),
+      subject,
+      html,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email sent via Gmail to ${to.join(', ')} - Message ID: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send email via Gmail:', error);
+    return false;
+  }
 }
 
 /**
  * Send email using Resend API
  */
-async function sendEmail(to: string[], subject: string, html: string): Promise<boolean> {
+async function sendEmailViaResend(to: string[], subject: string, html: string): Promise<boolean> {
   if (!RESEND_API_KEY) {
-    console.warn('Resend API key not configured, skipping email');
+    console.warn('Resend API key not configured');
     return false;
   }
 
@@ -47,11 +112,28 @@ async function sendEmail(to: string[], subject: string, html: string): Promise<b
       return false;
     }
 
-    console.log(`Email sent successfully to ${to.join(', ')}`);
+    console.log(`Email sent via Resend to ${to.join(', ')}`);
     return true;
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('Failed to send email via Resend:', error);
     return false;
+  }
+}
+
+/**
+ * Send email using the configured provider
+ */
+async function sendEmail(to: string[], subject: string, html: string): Promise<boolean> {
+  const provider = getEmailProvider();
+
+  switch (provider) {
+    case 'gmail':
+      return sendEmailViaGmail(to, subject, html);
+    case 'resend':
+      return sendEmailViaResend(to, subject, html);
+    default:
+      console.warn('No email provider configured, skipping email');
+      return false;
   }
 }
 
@@ -249,6 +331,9 @@ export async function sendReportNotifications(
     console.log('Email not configured, skipping notifications');
     return { sent: 0, failed: 0 };
   }
+
+  const provider = getEmailProvider();
+  console.log(`Sending email notifications via ${provider}`);
 
   let sent = 0;
   let failed = 0;

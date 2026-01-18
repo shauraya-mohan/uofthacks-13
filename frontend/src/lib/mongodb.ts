@@ -117,4 +117,5 @@ export interface DbArea {
 
   priority: number;
   isActive: boolean;
+  notificationEmails?: string[]; // Email addresses to notify when new reports are created in this area
 }

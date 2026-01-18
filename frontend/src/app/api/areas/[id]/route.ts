@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { validateEmails } from '@/lib/email';
 
 // DELETE /api/areas/[id] - Delete an area
 export async function DELETE(
@@ -55,20 +56,41 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, priority, isActive } = body;
+    const { name, priority, isActive, notificationEmails } = body;
 
-    const updateData: any = {};
-    
+    const updateData: Record<string, unknown> = {};
+
     if (name !== undefined) {
       updateData.name = name;
     }
-    
+
     if (priority !== undefined) {
       updateData.priority = priority;
     }
-    
+
     if (isActive !== undefined) {
       updateData.isActive = isActive;
+    }
+
+    // Handle notification emails update
+    if (notificationEmails !== undefined) {
+      if (!Array.isArray(notificationEmails)) {
+        return NextResponse.json(
+          { error: 'notificationEmails must be an array' },
+          { status: 400 }
+        );
+      }
+
+      const { valid, invalid } = validateEmails(notificationEmails);
+
+      if (invalid.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid email addresses: ${invalid.join(', ')}` },
+          { status: 400 }
+        );
+      }
+
+      updateData.notificationEmails = valid;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -98,6 +120,7 @@ export async function PATCH(
       name: result.name,
       geometry: result.polygon,
       createdAt: result.createdAt.toISOString(),
+      notificationEmails: result.notificationEmails || [],
     };
 
     return NextResponse.json(updatedArea);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Report, AdminArea } from '@/lib/types';
 import { getReportsInArea } from '@/lib/geo';
 import AreaKanban from './AreaKanban';
@@ -12,6 +12,7 @@ interface AdminSidebarProps {
   onAreaSelect: (areaId: string | null) => void;
   onAreaDelete: (areaId: string) => void;
   onAreaRename: (areaId: string, newName: string) => void;
+  onAreaUpdateEmails: (areaId: string, emails: string[]) => Promise<void>;
   onUpdateReport: (reportId: string, updates: Partial<Report>) => Promise<void>;
 }
 
@@ -22,8 +23,15 @@ export default function AdminSidebar({
   onAreaSelect,
   onAreaDelete,
   onAreaRename,
+  onAreaUpdateEmails,
   onUpdateReport,
 }: AdminSidebarProps) {
+  const [emailModalArea, setEmailModalArea] = useState<AdminArea | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [isSavingEmails, setIsSavingEmails] = useState(false);
+  const [localEmails, setLocalEmails] = useState<string[]>([]);
+
   const areaCounts = useMemo(() => {
     const counts = new Map<string, number>();
     areas.forEach((area) => {
@@ -42,6 +50,61 @@ export default function AdminSidebar({
     const newName = prompt('Enter new name for this area:', area.name);
     if (newName && newName.trim()) {
       onAreaRename(area.id, newName.trim());
+    }
+  };
+
+  const openEmailModal = (area: AdminArea) => {
+    setEmailModalArea(area);
+    setLocalEmails(area.notificationEmails || []);
+    setEmailInput('');
+    setEmailError('');
+  };
+
+  const closeEmailModal = () => {
+    setEmailModalArea(null);
+    setEmailInput('');
+    setEmailError('');
+  };
+
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const addEmail = () => {
+    const trimmed = emailInput.trim().toLowerCase();
+    if (!trimmed) return;
+
+    if (!isValidEmail(trimmed)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+
+    if (localEmails.includes(trimmed)) {
+      setEmailError('This email is already added');
+      return;
+    }
+
+    setLocalEmails([...localEmails, trimmed]);
+    setEmailInput('');
+    setEmailError('');
+  };
+
+  const removeEmail = (email: string) => {
+    setLocalEmails(localEmails.filter((e) => e !== email));
+  };
+
+  const saveEmails = async () => {
+    if (!emailModalArea) return;
+
+    setIsSavingEmails(true);
+    try {
+      await onAreaUpdateEmails(emailModalArea.id, localEmails);
+      closeEmailModal();
+    } catch (err) {
+      setEmailError('Failed to save emails. Please try again.');
+    } finally {
+      setIsSavingEmails(false);
     }
   };
 
@@ -94,6 +157,27 @@ export default function AdminSidebar({
                     </div>
 
                     <div className="flex items-center gap-1 ml-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEmailModal(area);
+                        }}
+                        className={`relative p-1.5 rounded transition-colors ${
+                          (area.notificationEmails?.length || 0) > 0
+                            ? 'text-green-400 hover:text-green-300 hover:bg-green-500/20'
+                            : 'text-gray-500 hover:text-blue-400 hover:bg-blue-500/20'
+                        }`}
+                        title="Notification Emails"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        {(area.notificationEmails?.length || 0) > 0 && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                            {area.notificationEmails?.length}
+                          </span>
+                        )}
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -153,6 +237,120 @@ export default function AdminSidebar({
           Click an area to highlight its reports
         </p>
       </div>
+
+      {/* Email Management Modal */}
+      {emailModalArea && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a1a] rounded-lg border border-[#333] w-full max-w-md mx-4 shadow-xl">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-[#333] flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-100">Notification Emails</h3>
+                <p className="text-sm text-gray-500 mt-0.5">{emailModalArea.name}</p>
+              </div>
+              <button
+                onClick={closeEmailModal}
+                className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-[#333] rounded transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4">
+              <p className="text-sm text-gray-400 mb-4">
+                Add email addresses to receive notifications when new reports are created in this area.
+              </p>
+
+              {/* Add Email Input */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => {
+                    setEmailInput(e.target.value);
+                    setEmailError('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addEmail();
+                    }
+                  }}
+                  placeholder="Enter email address"
+                  className="flex-1 px-3 py-2 bg-[#262626] border border-[#444] rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
+                />
+                <button
+                  onClick={addEmail}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+
+              {/* Error Message */}
+              {emailError && (
+                <p className="text-red-400 text-sm mb-3">{emailError}</p>
+              )}
+
+              {/* Email List */}
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {localEmails.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center py-4">
+                    No emails registered yet
+                  </p>
+                ) : (
+                  localEmails.map((email) => (
+                    <div
+                      key={email}
+                      className="flex items-center justify-between px-3 py-2 bg-[#262626] rounded-lg"
+                    >
+                      <span className="text-gray-300 text-sm truncate">{email}</span>
+                      <button
+                        onClick={() => removeEmail(email)}
+                        className="p-1 text-gray-500 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors ml-2 flex-shrink-0"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-[#333] flex justify-end gap-2">
+              <button
+                onClick={closeEmailModal}
+                className="px-4 py-2 text-gray-400 hover:text-gray-200 hover:bg-[#333] rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEmails}
+                disabled={isSavingEmails}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {isSavingEmails ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

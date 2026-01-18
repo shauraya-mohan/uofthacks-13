@@ -52,12 +52,15 @@ export function useAreas() {
   );
 
   const updateArea = useCallback(
-    async (id: string, updates: Partial<Omit<AdminArea, 'id' | 'createdAt'>>) => {
+    async (id: string, updates: Partial<Omit<AdminArea, 'id' | 'createdAt'>>): Promise<boolean> => {
+      // Store original area for potential rollback
+      const originalAreas = areas;
+
       // Optimistic update locally
       setAreas((prev) =>
         prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
       );
-      
+
       // Persist to database
       try {
         const response = await fetch(`/api/areas/${id}`, {
@@ -70,20 +73,19 @@ export function useAreas() {
 
         if (!response.ok) {
           // Revert optimistic update on failure
-          setAreas((prev) =>
-            prev.map((a) => (a.id === id ? { ...a } : a))
-          );
+          setAreas(originalAreas);
           console.error('Failed to update area');
+          return false;
         }
+        return true;
       } catch (error) {
         console.error('Failed to update area:', error);
         // Revert optimistic update on error
-        setAreas((prev) =>
-          prev.map((a) => (a.id === id ? { ...a } : a))
-        );
+        setAreas(originalAreas);
+        return false;
       }
     },
-    []
+    [areas]
   );
 
   const removeArea = useCallback(async (id: string) => {

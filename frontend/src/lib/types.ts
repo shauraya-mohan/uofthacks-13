@@ -84,6 +84,7 @@ export interface AdminArea {
   name: string;
   geometry: GeoJSON.Polygon;
   createdAt: string;
+  notificationEmails?: string[]; // Email addresses to notify when new reports are created in this area
 }
 
 // Severity color mapping

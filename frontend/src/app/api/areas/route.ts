@@ -17,6 +17,7 @@ export async function GET() {
       name: area.name,
       geometry: area.polygon,
       createdAt: area.createdAt.toISOString(),
+      notificationEmails: area.notificationEmails || [],
     }));
 
     return NextResponse.json(transformedAreas);
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       name: area.name,
       geometry: area.polygon,
       createdAt: area.createdAt.toISOString(),
+      notificationEmails: [],
     };
 
     return NextResponse.json(createdArea, { status: 201 });

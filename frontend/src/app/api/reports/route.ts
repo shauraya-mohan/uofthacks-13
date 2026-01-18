@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, DbReport } from '@/lib/mongodb';
+import { getDatabase, DbReport, DbArea } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { sendReportNotifications, isEmailConfigured } from '@/lib/email';
+import { getAreasContainingPoint } from '@/lib/geo-server';
+import type { Report, AdminArea, Category } from '@/lib/types';
 
 // Helper to safely convert date to ISO string
 function toISOString(date: Date | string | undefined): string {
@@ -295,6 +298,79 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await db.collection<DbReport>('reports').insertOne(report);
+
+    // Send email notifications to area administrators (non-blocking)
+    if (isEmailConfigured()) {
+      // Fetch all active areas to check which ones contain this report
+      const allAreas = await db
+        .collection<DbArea>('areas')
+        .find({ isActive: true })
+        .toArray();
+
+      // Transform to AdminArea type for geo matching
+      const adminAreas: AdminArea[] = allAreas.map((area) => ({
+        id: area._id?.toString() || '',
+        name: area.name,
+        geometry: area.polygon as GeoJSON.Polygon,
+        createdAt: area.createdAt.toISOString(),
+        notificationEmails: area.notificationEmails || [],
+      }));
+
+      // Find areas containing this report's location
+      const matchingAreas = getAreasContainingPoint(
+        { lat: coordinates.lat, lng: coordinates.lng },
+        adminAreas
+      );
+
+      // Filter to only areas with registered emails
+      const areasWithEmails = matchingAreas.filter(
+        (area) => area.notificationEmails && area.notificationEmails.length > 0
+      );
+
+      if (areasWithEmails.length > 0) {
+        // Create Report object for email
+        const reportForEmail: Report = {
+          id: result.insertedId.toString(),
+          createdAt: report.createdAt.toISOString(),
+          coordinates: { lat: coordinates.lat, lng: coordinates.lng },
+          mediaUrl: report.media.url,
+          mediaType: report.media.type,
+          fileName: report.media.fileName,
+          fileSize: report.media.fileSize,
+          thumbnailUrl: report.media.thumbnailUrl || undefined,
+          cloudinaryPublicId: report.media.cloudinaryPublicId || undefined,
+          aiDraft: {
+            title: report.aiDraft.title,
+            description: report.aiDraft.description,
+            suggestedFix: report.aiDraft.suggestedFix,
+            category: report.aiDraft.category as Category,
+            severity: report.aiDraft.severity,
+            confidence: report.aiDraft.confidence,
+            generatedAt: report.aiDraft.generatedAt.toISOString(),
+            estimatedCost: report.aiDraft.estimatedCost,
+          },
+          content: {
+            title: report.content.title,
+            description: report.content.description,
+            suggestedFix: report.content.suggestedFix,
+            category: report.content.category as Category,
+            severity: report.content.severity,
+            isEdited: report.content.isEdited,
+          },
+          geoMethod: report.geoMethod,
+          status: report.status,
+        };
+
+        // Send notifications asynchronously (don't wait for completion)
+        sendReportNotifications(reportForEmail, areasWithEmails)
+          .then(({ sent, failed }) => {
+            console.log(`Email notifications: ${sent} sent, ${failed} failed for report ${result.insertedId}`);
+          })
+          .catch((err) => {
+            console.error('Failed to send email notifications:', err);
+          });
+      }
+    }
 
     // Return the created report in frontend format
     const createdReport = {

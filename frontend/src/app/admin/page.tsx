@@ -110,6 +110,19 @@ export default function AdminPage() {
     [updateArea, addToast]
   );
 
+  const handleAreaUpdateEmails = useCallback(
+    async (areaId: string, emails: string[]) => {
+      const success = await updateArea(areaId, { notificationEmails: emails });
+      if (success) {
+        addToast(`Notification emails updated (${emails.length} recipients)`, 'success');
+      } else {
+        addToast('Failed to update notification emails', 'error');
+        throw new Error('Failed to update emails');
+      }
+    },
+    [updateArea, addToast]
+  );
+
   const handlePinClick = useCallback((report: Report) => {
     setSelectedReport(report);
     setIsDrawerOpen(true);
@@ -204,6 +217,7 @@ export default function AdminPage() {
             onAreaSelect={setSelectedAreaId}
             onAreaDelete={handleAreaDeleted}
             onAreaRename={handleAreaRename}
+            onAreaUpdateEmails={handleAreaUpdateEmails}
             onUpdateReport={handleUpdateReport}
           />
         )}

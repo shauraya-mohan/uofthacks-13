@@ -1,4 +1,4 @@
-# MobilityCursor - Setup & Deployment Guide
+# Communify - Setup & Deployment Guide
 
 **Last Updated:** January 17, 2026  
 **Status:** Ready for testing and deployment
@@ -158,7 +158,7 @@ Open http://localhost:3000 and:
 cd /Users/shauraya/Desktop/uofthacks-13
 git init
 git add .
-git commit -m "Initial commit - MobilityCursor"
+git commit -m "Initial commit - Communify"
 git branch -M main
 git remote add origin <your-github-repo-url>
 git push -u origin main

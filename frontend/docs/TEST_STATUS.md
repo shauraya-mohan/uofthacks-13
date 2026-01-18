@@ -1,4 +1,4 @@
-# MobilityCursor - Test Status Report
+# Communify - Test Status Report
 
 **Date:** January 17, 2026  
 **Time:** Testing Complete

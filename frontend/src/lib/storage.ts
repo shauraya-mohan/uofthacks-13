@@ -1,4 +1,4 @@
-// localStorage helpers for MobilityCursor
+// localStorage helpers for Communify
 // 
 // ⚠️ DEPRECATED: This file is kept for backwards compatibility only.
 // All data is now stored in MongoDB via API routes:
@@ -11,8 +11,8 @@
 import type { Report, AdminArea } from './types';
 
 const STORAGE_KEYS = {
-  reports: 'mobilitycursor:reports',
-  areas: 'mobilitycursor:areas',
+  reports: 'communify:reports',
+  areas: 'communify:areas',
 } as const;
 
 // Type-safe localStorage wrapper

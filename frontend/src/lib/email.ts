@@ -14,7 +14,7 @@ const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
 // Resend configuration (fallback option)
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'MobilityCursor <notifications@resend.dev>';
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Communify <notifications@resend.dev>';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -67,7 +67,7 @@ async function sendEmailViaGmail(to: string[], subject: string, html: string): P
     const transporter = createGmailTransporter();
 
     const mailOptions = {
-      from: `MobilityCursor <${GMAIL_USER}>`,
+      from: `Communify <${GMAIL_USER}>`,
       to: to.join(', '),
       subject,
       html,
@@ -311,7 +311,7 @@ function generateReportEmailHtml(report: Report, area: AdminArea): string {
       color: #9ca3af;
       font-size: 12px;
     ">
-      <p style="margin: 0;">This notification was sent by MobilityCursor</p>
+      <p style="margin: 0;">This notification was sent by Communify</p>
       <p style="margin: 8px 0 0;">You are receiving this because you are registered for notifications in "${area.name}"</p>
     </div>
   </div>
@@ -344,7 +344,7 @@ export async function sendReportNotifications(
       continue;
     }
 
-    const subject = `[MobilityCursor] New ${report.content.severity} severity report in ${area.name}`;
+    const subject = `[Communify] New ${report.content.severity} severity report in ${area.name}`;
     const html = generateReportEmailHtml(report, area);
 
     const success = await sendEmail(emails, subject, html);

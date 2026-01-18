@@ -1,4 +1,4 @@
-# MobilityCursor - Project Analysis & Completion Plan
+# Communify - Project Analysis & Completion Plan
 
 **Analysis Date:** January 17, 2026  
 **Time Remaining:** < 20 hours  
@@ -8,7 +8,7 @@
 
 ## 🎯 Project Overview
 
-**Name:** MobilityCursor (Cursor for Accessibility)
+**Name:** Communify (Cursor for Accessibility)
 
 **Core Functionality:**
 - Users submit photos/videos of accessibility barriers with GPS location

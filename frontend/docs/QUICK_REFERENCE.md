@@ -1,4 +1,4 @@
-# MobilityCursor - Quick Reference
+# Communify - Quick Reference
 
 ## 🚀 Get Started NOW
 
@@ -207,7 +207,7 @@ npm run dev
 # 1. Push to GitHub
 git init
 git add .
-git commit -m "MobilityCursor"
+git commit -m "Communify"
 git remote add origin <repo-url>
 git push -u origin main
 

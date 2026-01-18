@@ -107,7 +107,7 @@ async function uploadToCloudinary(file: File, isVideo: boolean): Promise<string>
 
   // Generate signature for authenticated upload
   const timestamp = Math.floor(Date.now() / 1000);
-  const folder = 'mobilitycursor';
+  const folder = 'communify';
   const resourceType = isVideo ? 'video' : 'image';
 
   // Create signature string (Cloudinary uses SHA1 by default)

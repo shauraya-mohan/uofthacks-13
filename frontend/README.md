@@ -1,4 +1,4 @@
-# MobilityCursor
+# Communify
 
 A web app for reporting and mapping accessibility barriers. Users upload photos/videos of barriers, AI analyzes them, and results appear as pins on an interactive map. Admins can define responsibility areas and see which reports fall inside.
 
@@ -64,12 +64,12 @@ CLOUDINARY_API_SECRET=xxx              # Cloudinary API secret
 # Optional
 NEXT_PUBLIC_ADMIN_PASSWORD=admin       # Admin panel password
 GEMINI_API_KEY=xxx                     # Google Gemini for AI analysis
-CLOUDINARY_FOLDER=mobilitycursor       # Upload folder (default: mobilitycursor)
+CLOUDINARY_FOLDER=communify       # Upload folder (default: communify)
 ```
 
 ## Cloudinary Setup (Image Hosting)
 
-MobilityCursor uses Cloudinary for fast image hosting with CDN delivery. This replaces storing large images directly in MongoDB.
+Communify uses Cloudinary for fast image hosting with CDN delivery. This replaces storing large images directly in MongoDB.
 
 ### How to Set Up
 
@@ -166,8 +166,8 @@ frontend/
 
 ## localStorage Keys
 
-- `mobilitycursor:reports` - Array of Report objects
-- `mobilitycursor:areas` - Array of AdminArea polygons
+- `communify:reports` - Array of Report objects
+- `communify:areas` - Array of AdminArea polygons
 
 ## Development
 

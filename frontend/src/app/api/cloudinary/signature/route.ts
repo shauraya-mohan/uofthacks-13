@@ -4,7 +4,7 @@ import crypto from 'crypto';
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
 const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
-const CLOUDINARY_FOLDER = process.env.CLOUDINARY_FOLDER || 'mobilitycursor';
+const CLOUDINARY_FOLDER = process.env.CLOUDINARY_FOLDER || 'communify';
 
 /**
  * GET /api/cloudinary/signature

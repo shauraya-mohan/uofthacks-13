@@ -1,4 +1,4 @@
-// Core types for MobilityCursor
+// Core types for Communify
 
 export type Severity = 'low' | 'medium' | 'high';
 

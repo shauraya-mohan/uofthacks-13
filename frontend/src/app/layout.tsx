@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'MobilityCursor - Report Accessibility Barriers',
+  title: 'Communify - Report Accessibility Barriers',
   description: 'Help make your community more accessible by reporting barriers that affect mobility.',
 };
 

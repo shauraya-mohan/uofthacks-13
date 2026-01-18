@@ -34,7 +34,7 @@ You DO NOT execute the search. You INITIALIZE the search by defining:
 
 Output your plan as a JSON object with these keys:
 - "semantic_query": The best natural language query to find this.
-- "filters": { "severity": "...", "category": "...", "status": "..." } (or null if none)
+- "filters": Dictionary with keys "severity", "category", "status" (or null if none)
 - "reasoning": A brief explanation of why you interpreted it this way.
 """
     
@@ -45,17 +45,24 @@ Output your plan as a JSON object with these keys:
     
     chain = prompt | llm
     
-    response = chain.invoke({"input": last_message})
-    
-    # Try to parse JSON, fallback to raw text if needed (though instruction ensures JSON)
     try:
-        # Extract JSON from potential markdown blocks
+        response = chain.invoke({"input": last_message})
+        
+        # Check if response has content
+        if not response or not response.content:
+            print("[INTENT_ANALYST] WARNING: Empty response from LLM, using fallback")
+            raise ValueError("Empty response from LLM")
+        
+        print(f"[INTENT_ANALYST] LLM Response: {response.content[:200]}")
+        
+        # Try to parse JSON, fallback to raw text if needed
         content = response.content.replace('```json', '').replace('```', '').strip()
         plan = json.loads(content)
-        # Store as stringified JSON for the state
         search_plan = json.dumps(plan)
-    except:
-        # Fallback
+        print(f"[INTENT_ANALYST] Parsed plan: {search_plan}")
+    except Exception as e:
+        # Fallback for any error
+        print(f"[INTENT_ANALYST] Error parsing response: {e}")
         search_plan = json.dumps({
             "semantic_query": last_message,
             "filters": {},
@@ -64,5 +71,5 @@ Output your plan as a JSON object with these keys:
     
     return {
         "search_plan": search_plan,
-        "trace": ["intent_analyst"]
+        "trace": state.get("trace", []) + ["intent_analyst"]
     }

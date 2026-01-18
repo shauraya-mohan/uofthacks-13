@@ -5,50 +5,15 @@ import json
 def supervisor_node(state: AgentState):
     """
     Agent 3: Supervisor (Synthesizer)
-    Aggregates the results from the tools and the original intent to provide the final answer.
+    Aggregates the results from the search_specialist and provides final response.
     """
-    messages = state['messages']
+    # The search_specialist already populated matching_ids in state
+    matching_ids = state.get("matching_ids", [])
     
-    # Check for tool outputs in history
-    # In LangGraph, tool outputs are appended to messages
-    
-    # We need to extract the matching IDs from the tool outputs
-    tool_outputs = []
-    matching_ids = []
-    
-    for msg in reversed(messages):
-        if msg.type == 'tool':
-            try:
-                content = json.loads(msg.content)
-                if isinstance(content, dict):
-                    if "matching_ids" in content:
-                        # Prioritize intersection if we have multiple filters, 
-                        # but for now let's just union or take the latest for simplicity
-                        # or better, let's accumulate them.
-                        # The single-agent logic took the intersection.
-                        # Let's try to find the intersection of all non-empty lists provided by tools
-                        pass
-                    
-                    tool_outputs.append(content)
-            except:
-                pass
-    
-    # Intersection logic for matching_ids
-    # We look at all tool outputs that returned 'matching_ids'
-    candidate_lists = []
-    for output in tool_outputs:
-        if "matching_ids" in output and output["matching_ids"]:
-            candidate_lists.append(set(output["matching_ids"]))
-            
-    if candidate_lists:
-        # Intersection of all sets
-        final_set = set.intersection(*candidate_lists)
-        matching_ids = list(final_set)
-    else:
-        matching_ids = []
-        
     search_plan_str = state.get("search_plan")
     search_plan = json.loads(search_plan_str) if search_plan_str else {}
+    
+    print(f"[SUPERVISOR] Received {len(matching_ids)} matching IDs from search_specialist")
     
     summary = f"Found {len(matching_ids)} reports."
     if not matching_ids:
@@ -58,5 +23,6 @@ def supervisor_node(state: AgentState):
         "matching_ids": matching_ids,
         "final_response": summary,
         "reasoning": search_plan.get("reasoning", ""),
-        "trace": ["supervisor"]
+        "trace": state.get("trace", []) + ["supervisor"]
     }
+

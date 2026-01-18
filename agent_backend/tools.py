@@ -31,12 +31,19 @@ async def vector_search(query: str, top_k: int = 20) -> Dict[str, Any]:
     # Search
     results = await search_similar(query, top_k=top_k)
     
+    # Log similarity scores for debugging
+    if results:
+        print(f"[VECTOR_SEARCH] Top results for '{query}':")
+        for report_id, score in results[:5]:
+            print(f"  - {report_id}: {score:.3f}")
+    
     return {
         "matching_ids": [r[0] for r in results],
         "scores": {r[0]: round(r[1], 3) for r in results},
         "total_indexed": get_index_size(),
         "match_count": len(results),
     }
+
 
 
 @tool

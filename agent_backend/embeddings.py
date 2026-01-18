@@ -49,7 +49,10 @@ def build_report_text(report: Dict[str, Any]) -> str:
     severity = content.get('severity') or ai_draft.get('severity') or ''
     fix = content.get('suggestedFix') or ai_draft.get('suggestedFix') or ''
     
-    return f"{title}. {category}. {severity} severity. {description} {fix}".strip()
+    text = f"{title}. {category}. {severity} severity. {description} {fix}".strip()
+    # Debug: show first 100 chars of each report text
+    print(f"[EMBED] {report.get('_id', 'unknown')[:8]}: {text[:100]}...")
+    return text
 
 
 def normalize_vectors(vectors: np.ndarray) -> np.ndarray:
@@ -113,7 +116,7 @@ async def build_index(reports: List[Dict[str, Any]], force_rebuild: bool = False
 async def search_similar(
     query: str,
     top_k: int = 20,
-    threshold: float = 0.35,
+    threshold: float = 0.5,
 ) -> List[Tuple[str, float]]:
     """
     Search for similar reports using vector similarity.

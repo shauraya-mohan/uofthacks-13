@@ -108,6 +108,26 @@ async def get_stats():
     }
 
 
+@app.get("/agent/debug/reports")
+async def debug_reports():
+    """Debug endpoint: view all reports and their search text."""
+    from embeddings import build_report_text
+    
+    reports = get_all_reports()
+    debug_data = []
+    for report in reports:
+        content = report.get('content', {})
+        debug_data.append({
+            "id": report['_id'],
+            "title": content.get('title', 'Untitled'),
+            "category": content.get('category', 'unknown'),
+            "severity": content.get('severity', 'unknown'),
+            "description": content.get('description', '')[:150],
+            "search_text": build_report_text(report)[:200],
+        })
+    return {"total": len(debug_data), "reports": debug_data}
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

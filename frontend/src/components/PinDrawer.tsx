@@ -9,6 +9,7 @@ interface PinDrawerProps {
   report: Report | null;
   isOpen: boolean;
   onClose: () => void;
+  onDelete?: (reportId: string) => Promise<void>;
 }
 
 function formatDate(isoString: string): string {
@@ -32,13 +33,14 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   resolved: { label: 'Resolved', color: '#22c55e' },
 };
 
-export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
+export default function PinDrawer({ report, isOpen, onClose, onDelete }: PinDrawerProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [fixedImageUrl, setFixedImageUrl] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [fullReport, setFullReport] = useState<Report | null>(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Keep a ref to the latest report for use in async callbacks
   const reportRef = useRef(report);
@@ -107,8 +109,26 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
     setIsGenerating(false);
     setFullReport(null);
     setImageLoadError(false);
+    setIsDeleting(false);
     onClose();
   }, [onClose]);
+
+  // Handle delete report
+  const handleDelete = useCallback(async () => {
+    if (!displayReport || !onDelete) return;
+
+    const confirmed = confirm(`Are you sure you want to delete this report?\n\n"${displayReport.content.title}"\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(displayReport.id);
+      handleClose();
+    } catch (error) {
+      console.error('Failed to delete report:', error);
+      setIsDeleting(false);
+    }
+  }, [displayReport, onDelete, handleClose]);
 
   // Reset image error when report changes
   useEffect(() => {
@@ -469,10 +489,34 @@ export default function PinDrawer({ report, isOpen, onClose }: PinDrawerProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#333] bg-[#141414]">
+        <div className="px-6 py-4 border-t border-[#333] bg-[#141414] flex gap-3">
+          {onDelete && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-600/30 rounded-lg font-medium hover:bg-red-600/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete
+                </>
+              )}
+            </button>
+          )}
           <button
             onClick={handleClose}
-            className="w-full px-4 py-2 bg-[#333] text-gray-100 rounded-lg font-medium hover:bg-[#404040] transition-colors"
+            className="flex-1 px-4 py-2 bg-[#333] text-gray-100 rounded-lg font-medium hover:bg-[#404040] transition-colors"
           >
             Close
           </button>

@@ -22,7 +22,7 @@ const AdminMap = dynamic(() => import('@/components/AdminMap'), {
 });
 
 export default function AdminPage() {
-  const { reports, isLoaded: reportsLoaded, refreshReports, updateReport } = useReports();
+  const { reports, isLoaded: reportsLoaded, refreshReports, updateReport, removeReport } = useReports();
   const { areas, isLoaded: areasLoaded, addArea, updateArea, removeArea } = useAreas();
   const { toasts, addToast, dismissToast } = useToast();
 
@@ -145,6 +145,14 @@ export default function AdminPage() {
     [updateReport, addToast]
   );
 
+  const handleDeleteReport = useCallback(
+    async (reportId: string) => {
+      await removeReport(reportId);
+      addToast('Report deleted', 'success');
+    },
+    [removeReport, addToast]
+  );
+
   if (!isAuthenticated) {
     return <AdminPasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
   }
@@ -228,6 +236,7 @@ export default function AdminPage() {
         report={selectedReport}
         isOpen={isDrawerOpen}
         onClose={handleDrawerClose}
+        onDelete={handleDeleteReport}
       />
 
       {/* Toast Notifications */}

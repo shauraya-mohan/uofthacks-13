@@ -389,7 +389,9 @@ export default function AdminMap({
       data.element.style.width = `${size}px`;
       data.element.style.height = `${size}px`;
       data.element.style.margin = isHighlighted ? `-${sizeDiff}px` : '0';
-      data.element.style.borderColor = statusColor;
+      // Use cyan border for search result highlights (contrasts with red/yellow/green severity colors)
+      data.element.style.borderColor = isHighlighted ? '#06b6d4' : statusColor;
+      data.element.style.borderWidth = isHighlighted ? '3px' : '2px';
       data.element.style.opacity = isHighlighted || !hasHighlights ? '1' : '0.4';
     });
   }, [highlightedReportIds, reports]);

@@ -1,128 +1,87 @@
 """
-LangGraph Multi-Agent System for Accessibility Search.
-Agents:
-1. Intent Analyst: Understands user query and defines a plan.
-2. Search Specialist: Executes search tools based on the plan.
-3. Supervisor: Aggregates results and provides final response.
+Communify AI Agent System
+
+This module provides the main entry points for the 3-agent architecture:
+1. Vision Agent - Analyzes photos/videos for accessibility barriers
+2. Search Agent - Finds reports using natural language queries
+3. Solution Agent - Generates fix recommendations
+
+Each agent is independent and can be called directly via API endpoints.
 """
 
-import os
-from typing import Dict, Any, List
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
-from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
-from dotenv import load_dotenv
+from typing import Dict, Any
 
-# Import the shared state
-from state import AgentState
-
-# Import tool definitions
-from tools import ALL_TOOLS
-
-# Import agent nodes
-from agents.intent_analyst import intent_analyst_node
-from agents.search_specialist import search_specialist_node
-from agents.supervisor import supervisor_node
-
-# Load environment variables
-load_dotenv()
+# Import individual agents
+from agents.vision_agent import vision_agent_analyze
+from agents.search_agent import search_agent_query
+from agents.solution_agent import solution_agent_generate
 
 
-def create_multi_agent_graph():
-    """Create the multi-agent workflow graph."""
+async def run_vision_agent(
+    image_base64: str,
+    mime_type: str = "image/jpeg",
+    filename: str = "image.jpg"
+) -> Dict[str, Any]:
+    """
+    Run the Vision Agent to analyze an image/video for accessibility barriers.
     
-    workflow = StateGraph(AgentState)
-    
-    # 1. Add Nodes
-    workflow.add_node("intent_analyst", intent_analyst_node)
-    workflow.add_node("search_specialist", search_specialist_node)
-    workflow.add_node("tools", ToolNode(ALL_TOOLS))
-    workflow.add_node("supervisor", supervisor_node)
-    
-    # 2. Add Edges
-    
-    # Entry -> Intent Analyst
-    workflow.set_entry_point("intent_analyst")
-    
-    # Intent Analyst -> Search Specialist
-    workflow.add_edge("intent_analyst", "search_specialist")
-    
-    # Search Specialist -> Tools (conditional) or Supervisor
-    def route_search_specialist(state: AgentState):
-        messages = state['messages']
-        last_message = messages[-1]
+    Args:
+        image_base64: Base64-encoded image data
+        mime_type: MIME type of the file
+        filename: Original filename
         
-        # If the specialist made tool calls, go to tools
-        if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-            return "tools"
-        
-        # Otherwise, if no tools needed (e.g. conversational), go straight to supervisor
-        return "supervisor"
+    Returns:
+        Analysis results with category, severity, description, etc.
+    """
+    return await vision_agent_analyze(image_base64, mime_type, filename)
+
+
+async def run_search_agent(query: str) -> Dict[str, Any]:
+    """
+    Run the Search Agent to find reports matching a natural language query.
     
-    workflow.add_conditional_edges(
-        "search_specialist", 
-        route_search_specialist, 
-        {
-            "tools": "tools",
-            "supervisor": "supervisor"
-        }
+    Args:
+        query: Natural language search query
+        
+    Returns:
+        Matching report IDs and summary
+    """
+    return await search_agent_query(query)
+
+
+async def run_solution_agent(
+    description: str,
+    category: str,
+    severity: str,
+    image_base64: str = None,
+    mime_type: str = "image/jpeg"
+) -> Dict[str, Any]:
+    """
+    Run the Solution Agent to generate fix recommendations.
+    
+    Args:
+        description: Description of the barrier
+        category: Category of the barrier
+        severity: Severity level
+        image_base64: Optional image for context
+        mime_type: MIME type of the image
+        
+    Returns:
+        Fix recommendations with steps, cost estimates, etc.
+    """
+    return await solution_agent_generate(
+        description=description,
+        category=category,
+        severity=severity,
+        image_base64=image_base64,
+        mime_type=mime_type
     )
-    
-    # Tools -> Supervisor
-    # (We assume single-turn tool execution for simplicity in this architecture, 
-    # but could loop back to specialist if needed for multi-hop)
-    workflow.add_edge("tools", "supervisor")
-    
-    # Supervisor -> End
-    workflow.add_edge("supervisor", END)
-    
-    return workflow.compile()
 
 
-# Singleton agent instance
-_agent = None
-
-
-def get_agent():
-    """Get or create the agent (singleton)."""
-    global _agent
-    if _agent is None:
-        _agent = create_multi_agent_graph()
-    return _agent
-
-
+# Legacy function for backward compatibility with existing /agent/search endpoint
 async def run_search(query: str) -> Dict[str, Any]:
     """
-    Run a search query through the multi-agent system.
+    Legacy wrapper for backward compatibility.
+    Maps to the new Search Agent.
     """
-    agent = get_agent()
-    
-    # Create initial state
-    initial_state = {
-        "messages": [HumanMessage(content=query)],
-        "matching_ids": [],
-        "search_plan": None,
-        "reasoning": "",
-        "trace": []
-    }
-    
-    # Run the graph
-    final_state = await agent.ainvoke(initial_state)
-    
-    # Extract results
-    matching_ids = final_state.get("matching_ids", [])
-    summary = final_state.get("final_response", "")
-    reasoning = final_state.get("reasoning", "")
-    trace = final_state.get("trace", [])
-    
-    print(f"[TRACE] Execution path: {trace}")
-    
-    return {
-        "matchingIds": matching_ids,
-        "summary": summary,
-        "reasoning": reasoning,
-        "totalReports": len(matching_ids),
-        "matchCount": len(matching_ids),
-        "trace": trace
-    }
-
+    return await run_search_agent(query)

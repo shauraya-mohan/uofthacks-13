@@ -18,7 +18,7 @@ export default function LandingPage({ onEnter }: LandingPageProps) {
                     Communify
                 </h1>
                 <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-lg leading-relaxed font-light">
-                    Access the world without barriers. <br />
+                    See the problem. Be the solution. <br />
                     <span className="text-blue-400/80">A community-driven platform for accessible mobility navigation.</span>
                 </p>
 

@@ -101,6 +101,7 @@ export default function CommandPaletteSearch({ onSearchResults, totalReports }: 
     const handleQuickSearch = useCallback((searchQuery: string) => {
         setQuery(searchQuery);
         setIsOpen(true);
+
         // Auto-search after setting query
         setTimeout(async () => {
             setIsSearching(true);
